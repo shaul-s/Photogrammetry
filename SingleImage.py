@@ -177,7 +177,7 @@ class SingleImage(object):
                 j += 2
 
         X = np.dot(la.inv(np.dot(np.transpose(A), A)), np.dot(np.transpose(A), imagePoints))
-        v = np.dot(A, X)- imagePoints
+        v = np.dot(A, X) - imagePoints
 
         adjustment_results = {"params": X, "residuals": v, "N": np.dot(np.transpose(A), A)}
 
@@ -288,7 +288,21 @@ class SingleImage(object):
             pts_image = img.Camera2Image(fMarks)
 
         """
-        pass  # Delete for implementation
+        #  setting up the required matrices
+        a0 = self.innerOrientationParameters[0]
+        b0 = self.innerOrientationParameters[1]
+        a1 = self.innerOrientationParameters[2]
+        a2 = self.innerOrientationParameters[3]
+        b1 = self.innerOrientationParameters[4]
+        b2 = self.innerOrientationParameters[5]
+
+        R = np.array([[a1[0], a2[0]], [b1[0], b2[0]]])
+        T = np.array([[a0[0]], [b0[0]]])
+
+        cameraPoints = cameraPoints.T
+        #  computing the transformation to the image system
+        return (T + np.dot(R, cameraPoints)).T
+
 
     def ImageToCamera(self, imagePoints):
         """
@@ -330,7 +344,15 @@ class SingleImage(object):
             pts_camera = img.Image2Camera(img_fmarks)
 
         """
-        pass  # Delete for implementation
+        inverse_pars = self.ComputeInverseInnerOrientation()
+        imagePoints = imagePoints.T
+
+        T = np.array([[inverse_pars[0]], [inverse_pars[1]]])
+        R = np.array([[inverse_pars[2], inverse_pars[3]], [inverse_pars[4], inverse_pars[5]]])
+
+        return (np.dot(R, imagePoints - T)).T
+
+
 
     def ComputeExteriorOrientation(self, imagePoints, groundPoints, epsilon):
         """
@@ -386,8 +408,9 @@ class SingleImage(object):
 
 
         """
+        pars = self.__ComputeApproximateVals(imagePoints, groundPoints)
+        return pars
 
-        pass  # delete for implementation
 
     def GroundToImage(self, groundPoints):
         """
@@ -494,7 +517,46 @@ class SingleImage(object):
         """
 
         # Find approximate values
-        pass  # delete when implementing
+        cameraPoints = cameraPoints.reshape(np.size(cameraPoints), 1)
+        groundPointsXY = groundPoints[0:2,:].T
+        groundPointsXY = groundPointsXY.reshape(np.size(groundPointsXY), 1)
+        groundPointsZ = groundPoints[2,:].T
+
+        n = int(len(cameraPoints))  # number of observations
+        u = 4  # 4 conform parameters
+
+        A = np.zeros((n, u))  # A matrix (n,u)
+
+        j = 0
+        for i in range(len(cameraPoints)):
+            if i % 2 == 0:
+                A[i, 0] = 1
+                A[i, 1] = 0
+                A[i, 2] = cameraPoints[j]
+                A[i, 3] = cameraPoints[j + 1]
+            else:
+                A[i, 0] = 0
+                A[i, 1] = 1
+                A[i, 2] = cameraPoints[j +1]
+                A[i, 3] = -cameraPoints[j]
+                j += 2
+
+        X = np.dot(la.inv(np.dot(np.transpose(A), A)), np.dot(np.transpose(A), groundPointsXY))
+
+        #  now we can compute the rest of the params
+        X0 = X[0]
+        Y0 = X[1]
+        kappa = np.arctan(-X[3]/X[2])
+        lam = np.sqrt(X[2]**2+X[3]**2)
+        Z0 = groundPointsZ[0] + lam*self.camera.focalLength
+
+
+
+        adjustment_results = {"X0" : X0[0], "Y0" : Y0[0], "Z0" : Z0[0] ,"omega" : 0, "phi" : 0, "kappa" : np.rad2deg(kappa[0])}
+
+        self.__exteriorOrientationParameters = np.array([X0[0], Y0[0], Z0[0], 0, 0, np.rad2deg(kappa[0])]).T  # updating the exterior orientation params
+
+        return adjustment_results
 
     def __ComputeObservationVector(self, groundPoints):
         """
