@@ -408,8 +408,30 @@ class SingleImage(object):
 
 
         """
-        pars = self.__ComputeApproximateVals(imagePoints, groundPoints)
-        return pars
+        pars = self.__ComputeApproximateVals(self.ImageToCamera(imagePoints), groundPoints)
+        l_b = self.__ComputeObservationVector(groundPoints.T)
+        l_b = np.reshape(l_b, (-1,1))
+        A = self.__ComputeDesignMatrix(groundPoints.T)
+
+        N = np.dot(A.T, A)
+        u = np.dot(A.T, l_b)
+
+        deltaX = np.dot(la.inv(N), u)
+        # update orientation pars
+        self.exteriorOrientationParameters = self.exteriorOrientationParameters + deltaX.T
+        # update residuals
+        v = self.__ComputeObservationVector(groundPoints.T) - l_b
+
+        #if la.norm(dX) <= epsilon:
+         #   sig = np.dot(v.T, v)
+
+            #return , v
+        #else:
+        #    return circleAdjust(l_b, X)
+        print('')
+
+
+
 
 
     def GroundToImage(self, groundPoints):
@@ -546,7 +568,7 @@ class SingleImage(object):
         #  now we can compute the rest of the params
         X0 = X[0]
         Y0 = X[1]
-        kappa = np.arctan(-X[3]/X[2])
+        kappa = np.arctan2(-X[3],X[2])
         lam = np.sqrt(X[2]**2+X[3]**2)
         Z0 = groundPointsZ[0] + lam*self.camera.focalLength
 
@@ -554,7 +576,7 @@ class SingleImage(object):
 
         adjustment_results = {"X0" : X0[0], "Y0" : Y0[0], "Z0" : Z0[0] ,"omega" : 0, "phi" : 0, "kappa" : np.rad2deg(kappa[0])}
 
-        self.__exteriorOrientationParameters = np.array([X0[0], Y0[0], Z0[0], 0, 0, np.rad2deg(kappa[0])]).T  # updating the exterior orientation params
+        self.__exteriorOrientationParameters = np.array([X0[0], Y0[0], Z0[0], 0, 0, kappa[0]]).T  # updating the exterior orientation params
 
         return adjustment_results
 

@@ -37,9 +37,8 @@ if __name__ == "__main__":
         GCP[2, i] = row[4]
 
     fiducialsImg3574 = fiducialsImg3574.T
-    fiducialsCamera3574 = image.ImageToCamera(fiducialsImg3574)
 
-    appx_vals = image.ComputeExteriorOrientation(fiducialsCamera3574, GCP, 0.001)
+    appx_vals = image.ComputeExteriorOrientation(fiducialsImg3574, GCP, 0.001)
 
 
 
