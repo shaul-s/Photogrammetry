@@ -386,7 +386,7 @@ class SingleImage(object):
         .. note::
 
             - Don't forget to update the ``self.exteriorOrientationParameters`` member (every iteration and at the end).
-            - Don't forget to call ``cameraPoints = self.ImageToCamera(imagePoints)`` to correct the coordinates              that are sent to ``self.__ComputeApproximateVals(cameraPoints, groundPoints)``
+            - Don't forget to call ``cameraPoints = self.ImageToCamera(imagePoints)`` to correct the coordinates that are sent to ``self.__ComputeApproximateVals(cameraPoints, groundPoints)``
             - return values can be a tuple of dictionaries and arrays.
 
         **Usage Example**
@@ -408,27 +408,43 @@ class SingleImage(object):
 
 
         """
-        pars = self.__ComputeApproximateVals(self.ImageToCamera(imagePoints), groundPoints)
-        l_b = self.__ComputeObservationVector(groundPoints.T)
-        l_b = np.reshape(l_b, (-1,1))
+        cameraPoints = self.ImageToCamera(imagePoints)
+        self.__ComputeApproximateVals(cameraPoints, groundPoints)
+        l0 = self.__ComputeObservationVector(groundPoints.T)
+        l0 = np.reshape(l0, (-1,1))
+        l = cameraPoints.reshape(np.size(cameraPoints), 1) - l0
         A = self.__ComputeDesignMatrix(groundPoints.T)
 
         N = np.dot(A.T, A)
-        u = np.dot(A.T, l_b)
-
+        u = np.dot(A.T, l)
         deltaX = np.dot(la.inv(N), u)
+
         # update orientation pars
-        self.exteriorOrientationParameters = self.exteriorOrientationParameters + deltaX.T
+        self.__exteriorOrientationParameters = np.add(self.__exteriorOrientationParameters, np.reshape(deltaX, 6))
         # update residuals
-        v = self.__ComputeObservationVector(groundPoints.T) - l_b
 
-        #if la.norm(dX) <= epsilon:
-         #   sig = np.dot(v.T, v)
 
-            #return , v
-        #else:
-        #    return circleAdjust(l_b, X)
-        print('')
+        while la.norm(deltaX) > epsilon:
+            l0 = self.__ComputeObservationVector(groundPoints.T)
+            l0 = np.reshape(l0, (-1, 1))
+            l = cameraPoints.reshape(np.size(cameraPoints), 1) - l0
+            A = self.__ComputeDesignMatrix(groundPoints.T)
+            N = np.dot(A.T, A)
+            u = np.dot(A.T, l)
+            deltaX = np.dot(la.inv(N), u)
+            # update orientation pars
+            self.__exteriorOrientationParameters = np.add(self.__exteriorOrientationParameters, np.reshape(deltaX, 6))
+
+        # compute residuals
+        l_a = np.reshape(self.__ComputeObservationVector(groundPoints.T), (-1, 1))
+        v = l_a - cameraPoints.reshape(np.size(cameraPoints), 1)
+        sig = np.dot(v.T, v)/(np.size(A[0]-np.size(deltaX[0])))
+        sigmaX = sig[0]*la.inv(N)
+
+        return [self.exteriorOrientationParameters, sigmaX, v]
+
+
+
 
 
 
@@ -533,9 +549,6 @@ class SingleImage(object):
 
            - This function is empty, need implementation
            - Decide how the exterior parameters are held, don't forget to update documentation
-
-
-
         """
 
         # Find approximate values
@@ -559,7 +572,7 @@ class SingleImage(object):
             else:
                 A[i, 0] = 0
                 A[i, 1] = 1
-                A[i, 2] = cameraPoints[j +1]
+                A[i, 2] = cameraPoints[j + 1]
                 A[i, 3] = -cameraPoints[j]
                 j += 2
 
@@ -570,14 +583,12 @@ class SingleImage(object):
         Y0 = X[1]
         kappa = np.arctan2(-X[3],X[2])
         lam = np.sqrt(X[2]**2+X[3]**2)
-        Z0 = groundPointsZ[0] + lam*self.camera.focalLength
-
-
+        Z0 = np.average(groundPointsZ) + (lam)*self.camera.focalLength
 
         adjustment_results = {"X0" : X0[0], "Y0" : Y0[0], "Z0" : Z0[0] ,"omega" : 0, "phi" : 0, "kappa" : np.rad2deg(kappa[0])}
 
         self.__exteriorOrientationParameters = np.array([X0[0], Y0[0], Z0[0], 0, 0, kappa[0]]).T  # updating the exterior orientation params
-
+        # self.__exteriorOrientationParameters = np.array([202225, 742447, 657.81, 0, 0, kappa[0]]).T
         return adjustment_results
 
     def __ComputeObservationVector(self, groundPoints):

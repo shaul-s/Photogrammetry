@@ -26,10 +26,9 @@ if __name__ == "__main__":
     j = 0
     for row in control_p[2]:
         if row[0] == '3574':
-            fiducialsImg3574[0,j] = row[1]
+            fiducialsImg3574[0, j] = row[1]
             fiducialsImg3574[1, j] = row[2]
-        else:
-            j -= 1
+            j += 1
 
     for i, row in enumerate(control_p[1]):
         GCP[0, i] = row[2]
@@ -38,7 +37,14 @@ if __name__ == "__main__":
 
     fiducialsImg3574 = fiducialsImg3574.T
 
-    appx_vals = image.ComputeExteriorOrientation(fiducialsImg3574, GCP, 0.001)
+    fiducialsImg3574B = np.delete(fiducialsImg3574, 4, 0)
+    GCPB = np.delete(GCP, 4, 1)
+
+
+    extOrientationA = image.ComputeExteriorOrientation(fiducialsImg3574, GCP, 1e-6)
+    extOrientationB = image.ComputeExteriorOrientation(fiducialsImg3574B, GCPB, 1e-6)
+    extOrientationD = image.ComputeExteriorOrientation(fiducialsImg3574[0:3,:], GCP[:,0:3], 1e-6)
+
 
 
 
