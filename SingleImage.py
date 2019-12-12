@@ -421,8 +421,6 @@ class SingleImage(object):
 
         # update orientation pars
         self.__exteriorOrientationParameters = np.add(self.__exteriorOrientationParameters, np.reshape(deltaX, 6))
-        # update residuals
-
 
         while la.norm(deltaX) > epsilon:
             l0 = self.__ComputeObservationVector(groundPoints.T)
@@ -521,7 +519,35 @@ class SingleImage(object):
             img.ImageToGround_GivenZ(imgPnt, 115.)
 
         """
-        pass  # delete after implementation
+        cameraPoints = self.ImageToCamera(imagePoints)
+        cameraPoints = cameraPoints.T
+        pars = self.exteriorOrientationParameters
+        X0 = pars[0]
+        Y0 = pars[1]
+        Z0 = pars[2]
+
+        T = np.array([[X0], [Y0], [Z0]])
+
+        omega = pars[3]
+        phi = pars[4]
+        kappa = pars[5]
+
+        R = Compute3DRotationMatrix(omega, phi, kappa)
+
+        f = self.camera.focalLength
+
+        # allocating memory for return array
+        groundPoints = []
+
+        for i in range(len(cameraPoints[1])):
+            groundPoints.append(T+(Z_values[i]\f)*np.dot(R, np.array([[cameraPoints[0,i]], [cameraPoints[1,i]]])))
+
+        groundPoints = np.array(groundPoints)
+
+        return groundPoints
+
+
+
 
     # ---------------------- Private methods ----------------------
 
