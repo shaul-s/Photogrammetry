@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE phini SYSTEM "phini4.dtd">
+<phini><!-- 6.4.2295 Lite x64 -->
+  <x n="info">
+    <s n="timestamp" v="2019-12-10T11:35:04.7795024+02:00"/>
+    <s n="project_id" v="/Virtual Folder/Lab5Z"/>
+  </x>
+  <i n="code_g_counter" v="20"/>
+  <i n="modification_counter" v="2"/>
+  <x n="images">
+    <x>
+      <i n="code_im" v="3574"/>
+      <s n="name" v="AR112-3574"/>
+      <x n="dimensions"><i n="x" v="15360"/><i n="y" v="14848"/></x>
+    </x>
+    <x>
+      <i n="code_im" v="3575"/>
+      <s n="name" v="AR112-3575"/>
+      <x n="dimensions"><i n="x" v="15360"/><i n="y" v="14848"/></x>
+    </x>
+  </x>
+  <x n="points">
+    <x>
+      <x n="attributes">
+        <i n="code_g" v="7"/>
+        <i n="ser_counter" v="2"/>
+        <s n="name" v="Pt0007"/>
+        <s n="type" v="control"/>
+        <x n="coords_g"><d n="x" v="2.0158400500000000e+005"/><d n="y" v="7.4247257900000003e+005"/><d n="z" v="2.6818799999999999e+002"/></x>
+        <x n="r_std_dev_g"><d n="x" v="5.0000000000000000e+000"/><d n="y" v="5.0000000000000000e+000"/><d n="z" v="5.0000000000000000e+000"/></x>
+      </x>
+      <x n="measurements">
+        <x>
+          <i n="code_im" v="3574"/>
+          <x n="coords_pix"><d n="x" v="1.4491962254615350e+004"/><d n="y" v="1.3355210358157048e+004"/></x>
+        </x>
+      </x>
+    </x>
+    <x>
+      <x n="attributes">
+        <i n="code_g" v="8"/>
+        <i n="ser_counter" v="2"/>
+        <s n="name" v="Pt0008"/>
+        <s n="type" v="control"/>
+        <x n="coords_g"><d n="x" v="2.0193368799999999e+005"/><d n="y" v="7.4276352000000002e+005"/><d n="z" v="1.9240799999999999e+002"/></x>
+        <x n="r_std_dev_g"><d n="x" v="5.0000000000000000e+000"/><d n="y" v="5.0000000000000000e+000"/><d n="z" v="5.0000000000000000e+000"/></x>
+      </x>
+      <x n="measurements">
+        <x>
+          <i n="code_im" v="3574"/>
+          <x n="coords_pix"><d n="x" v="1.3596276232942411e+004"/><d n="y" v="6.8124116550411618e+003"/></x>
+        </x>
+      </x>
+    </x>
+    <x>
+      <x n="attributes">
+        <i n="code_g" v="9"/>
+        <i n="ser_counter" v="2"/>
+        <s n="name" v="Pt0009"/>
+        <s n="type" v="control"/>
+        <x n="coords_g"><d n="x" v="2.0232645300000001e+005"/><d n="y" v="7.4291368599999999e+005"/><d n="z" v="1.6325000000000000e+002"/></x>
+        <x n="r_std_dev_g"><d n="x" v="5.0000000000000000e+000"/><d n="y" v="5.0000000000000000e+000"/><d n="z" v="5.0000000000000000e+000"/></x>
+      </x>
+      <x n="measurements">
+        <x>
+          <i n="code_im" v="3574"/>
+          <x n="coords_pix"><d n="x" v="1.1519352094566606e+004"/><d n="y" v="1.9334499545168294e+003"/></x>
+        </x>
+      </x>
+    </x>
+  </x>
+</phini>
