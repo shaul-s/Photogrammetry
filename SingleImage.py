@@ -436,7 +436,7 @@ class SingleImage(object):
         # compute residuals
         l_a = np.reshape(self.__ComputeObservationVector(groundPoints.T), (-1, 1))
         v = l_a - cameraPoints.reshape(np.size(cameraPoints), 1)
-        sig = np.dot(v.T, v)/(np.size(A[0]-np.size(deltaX[0])))
+        sig = np.dot(v.T, v)/(np.size(A,0)-np.size(deltaX))
         sigmaX = sig[0]*la.inv(N)
 
         return [self.exteriorOrientationParameters, sigmaX, v]
@@ -540,7 +540,7 @@ class SingleImage(object):
         groundPoints = []
 
         for i in range(len(cameraPoints[1])):
-            groundPoints.append(T+(Z_values[i]\f)*np.dot(R, np.array([[cameraPoints[0,i]], [cameraPoints[1,i]]])))
+            groundPoints.append(T+(Z_values[i]/f)*np.dot(R, np.array([[cameraPoints[0,i]], [cameraPoints[1,i]]])))
 
         groundPoints = np.array(groundPoints)
 
