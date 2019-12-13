@@ -8,6 +8,7 @@ from scipy import linalg as la
 
 if __name__ == "__main__":
 
+    ###   PART A - INTERIOR ORIENTATION  ###
     cam_pars = rd.Reader.ReadCamFile(r'rc30.cam')
     fiducialsImg = rd.Reader.Readtxtfile(r'fiducialsImg.txt')
     control_p = rd.Reader.photoModXMLReader(r'lab5.xml')
@@ -53,11 +54,17 @@ if __name__ == "__main__":
     fiducialsImg3574B = np.delete(fiducialsImg3574, 4, 0)
     GCPB = np.delete(GCP, 4, 1)
 
-
     extOrientationA = image.ComputeExteriorOrientation(fiducialsImg3574, GCP, 1e-6)
+    gPoints = image.ImageToGround_GivenZ(fiducialsImg3574[4,:], np.array(GCP[2,4]))
+
     extOrientationB = image.ComputeExteriorOrientation(fiducialsImg3574B, GCPB, 1e-6)
+    gPoints = image.ImageToGround_GivenZ(fiducialsImg3574[4, :], np.array(GCP[2, 4]))
+
     extOrientationC = image.ComputeExteriorOrientation(np.vstack((fiducialsImg3574[0:3,:], fiducialsImg3574_xtra)), np.hstack((GCP[:,0:3], GCP_xtra)), 1e-6)
+    gPoints = image.ImageToGround_GivenZ(fiducialsImg3574[4, :], np.array(GCP[2, 4]))
+
     extOrientationD = image.ComputeExteriorOrientation(fiducialsImg3574[0:3,:], GCP[:,0:3], 1e-6)
+    gPoints = image.ImageToGround_GivenZ(fiducialsImg3574[4, :], np.array(GCP[2, 4]))
 
 
 
@@ -65,7 +72,7 @@ if __name__ == "__main__":
 
 
     # printing answers
-    mm.PrintMatrix(fiducialsCamera3574, 'Image 3574 Control Points in Camera System')
+    #mm.PrintMatrix(fiducialsImg3574, 'Image 3574 Control Points in Camera System')
     """
     mm.PrintMatrix(inner_pars["params"], 'Inner Orientation Parameters')
     mm.PrintMatrix(inner_pars["residuals"], 'Inner Orientation Parameters')

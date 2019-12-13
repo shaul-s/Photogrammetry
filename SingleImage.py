@@ -347,6 +347,9 @@ class SingleImage(object):
         inverse_pars = self.ComputeInverseInnerOrientation()
         imagePoints = imagePoints.T
 
+        if imagePoints.size == 2:
+            imagePoints = np.reshape(np.array(imagePoints), (np.size(imagePoints), 1))
+
         T = np.array([[inverse_pars[0]], [inverse_pars[1]]])
         R = np.array([[inverse_pars[2], inverse_pars[3]], [inverse_pars[4], inverse_pars[5]]])
 
@@ -436,8 +439,11 @@ class SingleImage(object):
         # compute residuals
         l_a = np.reshape(self.__ComputeObservationVector(groundPoints.T), (-1, 1))
         v = l_a - cameraPoints.reshape(np.size(cameraPoints), 1)
-        sig = np.dot(v.T, v)/(np.size(A,0)-np.size(deltaX))
-        sigmaX = sig[0]*la.inv(N)
+        if (np.size(A,0)-np.size(deltaX)) != 0:
+            sig = np.dot(v.T, v)/(np.size(A,0)-np.size(deltaX))
+            sigmaX = sig[0]*la.inv(N)
+        else:
+            sigmaX = None
 
         return [self.exteriorOrientationParameters, sigmaX, v]
 
@@ -531,7 +537,6 @@ class SingleImage(object):
         omega = pars[3]
         phi = pars[4]
         kappa = pars[5]
-
         R = Compute3DRotationMatrix(omega, phi, kappa)
 
         f = self.camera.focalLength
@@ -540,7 +545,15 @@ class SingleImage(object):
         groundPoints = []
 
         for i in range(len(cameraPoints[1])):
-            groundPoints.append(T+(Z_values[i]/f)*np.dot(R, np.array([[cameraPoints[0,i]], [cameraPoints[1,i]]])))
+            camVec = np.insert(cameraPoints[:,i], np.size(cameraPoints), -f)
+            lam = (Z_values - Z0)/(np.dot(R[2,:], camVec))
+
+            X = X0 + lam*np.dot(R[0,:], camVec)
+            Y = Y0 + lam * np.dot(R[1, :], camVec)
+
+            xy = [X, Y, Z_values]
+            groundPoints.append(xy)
+
 
         groundPoints = np.array(groundPoints)
 
