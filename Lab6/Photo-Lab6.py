@@ -6,7 +6,8 @@ import ImagePair as ip
 import MatrixMethods as mm
 from scipy import linalg as la
 
-
+def poly_area(x,y):
+    return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 if __name__ == "__main__":
     ### Reading data ###
@@ -61,6 +62,11 @@ if __name__ == "__main__":
 
     imagePair1 = ip.ImagePair(image3574, image3575)
 
-    gPoints = imagePair1.ImagesToGround(fids3574, fids3575, 'vector')
+    gPoints, acc = imagePair1.ImagesToGround(fids3574, fids3575, 'vector')
+
+    camPoints = imagePair1.GroundToImage(gPoints)
+
+    roof_area_world = poly_area(gPoints[:,0], gPoints[:,1])
+    roof_area_camera = poly_area(camPoints3574[:,0], camPoints3574[:,1])
 
     print(samples)
