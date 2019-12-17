@@ -78,16 +78,16 @@ class ImagePair(object):
         """
         return self.__relativeOrientationImage2[0:3]
 
-    def ImagesToGround(self, cameraPoints1, cameraPoints2, Method):
+    def ImagesToGround(self, imagePoints1, imagePoints2, Method):
         """
         Computes ground coordinates of homological points
 
-        :param cameraPoints1: points in image 1
-        :param cameraPoints2: corresponding points in image 2
+        :param imagePoints1: points in image 1
+        :param imagePoints2: corresponding points in image 2
         :param Method: method to use for the ray intersection, three options exist: geometric, vector, Collinearity
 
-        :type cameraPoints1: np.array nx2
-        :type cameraPoints2: np.array nx2
+        :type imagePoints1: np.array nx2
+        :type imagePoints2: np.array nx2
         :type Method: string
 
         :return: ground points, their accuracies.
@@ -124,10 +124,26 @@ class ImagePair(object):
             new.ImagesToGround(imagePoints1, imagePoints2, 'geometric'))
 
         """
-        if Method == 'geometric':
-            v1 = np.dot(self.__image1.rotationMatrix, cameraPoints1)
-            v2 = np.dot(self.__image2.rotationMatrix, cameraPoints2)
+        #  defining perspective center in the world system and transforming to camera points
+        o1 = np.array(self.__image1.exteriorOrientationParameters[0:3])
+        o2 = np.array(self.__image2.exteriorOrientationParameters[0:3])
+        camPoints1 = self.__image1.ImageToCamera(imagePoints1)
+        camPoints2 = self.__image2.ImageToCamera(imagePoints2)
 
+        #  what is the method ?
+        if Method == 'geometric':
+            f_row1 = np.zeros((1, camPoints1.shape[0]))
+            f_row2 = np.zeros((1, camPoints2.shape[0]))
+            for i in range(len(f_row1)):
+                f_row1[i] = -self.__image1.camera.focalLength
+            for i in range(len(f_row2)):
+                f_row2[i] = -self.__image2.camera.focalLength
+
+            camPoints1 = np.hstack((camPoints1, f_row1.T)).T
+            camPoints2 = np.hstack((camPoints2, f_row2.T)).T
+
+            v1 = np.dot(self.__image1.rotationMatrix, camPoints1) / 1000
+            v2 = np.dot(self.__image2.rotationMatrix, camPoints2) / 1000
 
             v1vt = np.dot(v1, v1.T)
             v2vt = np.dot(v2, v2.T)
@@ -136,17 +152,34 @@ class ImagePair(object):
             A1 = I - v1vt
             A2 = I - v2vt
 
-            o1 = np.hstack(self.__image1.camera.principalPoint, -self.__image1.camera.focalLength)
-            o2 = np.hstack(self.__image2.camera.principalPoint, -self.__image2.camera.focalLength)
             l1 = np.dot(A1, o1)
             l2 = np.dot(A2, o2)
 
-            A = np.hstack(A1, A2)
-            l = np.hstack(l1, l2)
+            A = np.hstack((A1, A2))
+            l = np.hstack((l1, l2))
 
             X = np.dot(la.inv(np.dot(A.T, A)), np.dot(A.T, l))
 
             return X
+
+        elif Method == 'vector':
+
+            groundPoints = []
+
+            for i in range(camPoints1.shape[0]):
+                x1 = np.hstack((camPoints1[i, :], self.__image1.camera.focalLength)) / 1000
+                x2 = np.hstack((camPoints2[i, :], self.__image2.camera.focalLength)) / 1000
+                v1 = np.dot(self.__image1.rotationMatrix, x1)
+                v2 = np.dot(self.__image1.rotationMatrix, x2)
+
+                mat_inv = np.array([[np.dot(v1, v1), np.dot(-v1, v2)], [np.dot(v1, v2), np.dot(-v2, v2)]])
+                mat = np.array([[np.dot((o2 - o1), v1)], [np.dot((o2 - o1), v2)]])
+
+                lam = np.dot(la.inv(mat_inv), mat)
+
+                groundPoints.append(((o1 + np.dot(float(lam[0]), v1)) + (o2 + np.dot(float(lam[1]), v2))) / 2)
+
+            return np.transpose(np.array(groundPoints))
 
 
 
