@@ -353,21 +353,7 @@ class ImagePair(object):
         :rtype: np.array nx2
 
         """
-        X0 = float(self.__image1.exteriorOrientationParameters[0])
-        Y0 = float(self.__image1.exteriorOrientationParameters[1])
-        Z0 = float(self.__image1.exteriorOrientationParameters[2])
-
-        xp = float(self.__image1.camera.principalPoint[0])
-        yp = float(self.__image1.camera.principalPoint[1])
-
-        R = np.transpose(self.__image1.rotationMatrix)
-        r11 = float(R[0,0]); r12 = float(R[0,1]); r13 = float(R[0,2])
-        r21 = float(R[1,0]); r22 = float(R[1,1]); r23 = float(R[1,2])
-        r31 = float(R[2,0]); r32 = float(R[2,1]); r33 = float(R[2,2])
-
-        f = self.__image1.camera.focalLength
-
-        camPoints = []
+        pass  # you need to know what image to use (?)
 
         for i in range(groundPoints.shape[0]):
             x = xp - (f)*(((r11*(groundPoints[i,0]-X0) + r21*(groundPoints[i,1]-Y0) + r31*(groundPoints[i,2]-Z0))/(r13*(groundPoints[i,0]-X0) + r23*(groundPoints[i,1]-Y0 + r33*(groundPoints[i,2]-Z0)))))
