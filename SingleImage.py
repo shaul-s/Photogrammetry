@@ -147,17 +147,10 @@ class SingleImage(object):
             img = SingleImage(camera = cam, points = None)
             inner_parameters, accuracies, residuals = img.ComputeInnerOrientation(img_fmarks)
         """
-        #  implementing observation vectors ++ deleting unwanted observations
+        #  implementing observation vectors
         imagePoints = imagePoints.reshape(np.size(imagePoints), 1)
-        imagePoints = np.delete(imagePoints, 15, 0)
-        imagePoints = np.delete(imagePoints, 14, 0)
-        imagePoints = np.delete(imagePoints, 11, 0)
-        imagePoints = np.delete(imagePoints, 10, 0)
+
         fMarks = self.camera.fiducialMarks.reshape(np.size(self.camera.fiducialMarks), 1)
-        fMarks = np.delete(fMarks, 15, 0)
-        fMarks = np.delete(fMarks, 14, 0)
-        fMarks = np.delete(fMarks, 11, 0)
-        fMarks = np.delete(fMarks, 10, 0)
 
         n = int(len(imagePoints))  # number of observations
         u = 6  # 6 orientation parameters
@@ -467,7 +460,39 @@ class SingleImage(object):
         :rtype: np.array nx2
 
         """
-        pass  # delete after implementation
+        X0 = float(self.exteriorOrientationParameters[0])
+        Y0 = float(self.exteriorOrientationParameters[1])
+        Z0 = float(self.exteriorOrientationParameters[2])
+
+        xp = float(self.camera.principalPoint[0])
+        yp = float(self.camera.principalPoint[1])
+
+        R = self.rotationMatrix
+        r11 = float(R[0, 0])
+        r12 = float(R[0, 1])
+        r13 = float(R[0, 2])
+        r21 = float(R[1, 0])
+        r22 = float(R[1, 1])
+        r23 = float(R[1, 2])
+        r31 = float(R[2, 0])
+        r32 = float(R[2, 1])
+        r33 = float(R[2, 2])
+
+        f = self.camera.focalLength
+
+        camPoints = []
+
+        for i in range(groundPoints.shape[0]) :
+            x = xp - (f) * (((r11 * (groundPoints[i, 0] - X0) + r21 * (groundPoints[i, 1] - Y0) + r31 * (
+                    groundPoints[i, 2] - Z0)) / (r13 * (groundPoints[i, 0] - X0) + r23 * (
+                    groundPoints[i, 1] - Y0) + r33 * (groundPoints[i, 2] - Z0))))
+            y = yp - (f) * (((r12 * (groundPoints[i, 0] - X0) + r22 * (groundPoints[i, 1] - Y0) + r32 * (
+                    groundPoints[i, 2] - Z0)) / (r13 * (groundPoints[i, 0] - X0) + r23 * (
+                    groundPoints[i, 1] - Y0) + r33 * (groundPoints[i, 2] - Z0))))
+
+            camPoints.append([x, y])
+
+        return self.CameraToImage(np.array(camPoints))
 
     def ImageToRay(self, imagePoints):
         """

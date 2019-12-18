@@ -64,9 +64,9 @@ if __name__ == "__main__":
 
     gPoints, acc = imagePair1.ImagesToGround(fids3574, fids3575, 'vector')
 
-    camPoints = imagePair1.GroundToImage(gPoints)
+    imgPoints3574 = image3574.GroundToImage(gPoints)
+    imgPoints3575 = image3575.GroundToImage(gPoints)
 
     roof_area_world = poly_area(gPoints[:,0], gPoints[:,1])
     roof_area_camera = poly_area(camPoints3574[:,0], camPoints3574[:,1])
 
-    print(samples)
