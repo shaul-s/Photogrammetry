@@ -146,7 +146,7 @@ class Camera(object):
         :rtype: tuple of np.array
 
         """
-        pass # delete for implementation
+        pass  # delete for implementation
 
     def CorrectionToPrincipalPoint(self, camera_points):
         """
