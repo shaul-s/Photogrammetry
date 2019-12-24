@@ -242,7 +242,42 @@ class ImagePair(object):
             new.ComputeDependentRelativeOrientation(imagePoints1, imagePoints2, np.array([1, 0, 0, 0, 0, 0])))
 
         """
-        pass  # delete after implementation
+        # bb = np.array([[0, - initialValues[2], initialValues[1]], [initialValues[2], 0, -initialValues[0]], [-initialValues[1], initialValues[0], 0]])
+
+        zs = np.full((1, len(imagePoints1)), -self.__image1.camera.focalLength)
+        imagePoints1 = np.hstack((imagePoints1, np.transpose(zs)))
+        imagePoints2 = np.hstack((imagePoints2, np.transpose(zs)))
+
+        A, B, w = self.Build_A_B_W(imagePoints1, imagePoints2, np.reshape(initialValues, (initialValues.size, 1)))
+
+        M = np.dot(B, B.T)
+        N = np.dot(A.T, np.dot(la.inv(M), A))
+        u = np.dot(A.T, np.dot(la.inv(M), w))
+
+        dX = -np.dot(la.inv(N), u)
+        initialValues = initialValues + dX
+
+        while la.norm(dX) >= 1e-6 :
+            A, B, w = self.Build_A_B_W(imagePoints1, imagePoints2, np.reshape(initialValues, (initialValues.size, 1)))
+
+            M = np.dot(B, B.T)
+            N = np.dot(A.T, np.dot(la.inv(M), A))
+            u = np.dot(A.T, np.dot(la.inv(M), w))
+
+            dX = -np.dot(la.inv(N), u)
+            initialValues = initialValues + dX
+
+        initialValues = np.insert(initialValues, 0, 1)
+        self.__relativeOrientationImage2 = initialValues
+
+        v = -np.dot(B.T, np.dot(la.inv(M), w))
+        sig_squared = np.dot(v.T, v) / (A.shape[0] - 5)
+
+        sigmaX = sig_squared * la.inv(N)
+
+        return {"Relative Orientation Parameters" : initialValues, "Variance-Covariance Matrix" : sigmaX}
+
+        print('hi')
 
 
 
@@ -262,7 +297,7 @@ class ImagePair(object):
 
         :rtype: tuple
         """
-        numPnts = cameraPoints1.shape[0] # Number of points
+        numPnts = cameraPoints1.shape[0]  # Number of points
 
         dbdy = np.array([[0, 0, 1], [0, 0, 0], [-1, 0, 0]])
         dbdz = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 0]])
