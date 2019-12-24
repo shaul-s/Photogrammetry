@@ -23,10 +23,10 @@ if __name__ == "__main__" :
     image2008 = sg.SingleImage(cam1)
     img2008points1 = rd.Reader.ReadSampleFile(r'IMG_2008_1.json')
     img2009points1 = rd.Reader.ReadSampleFile(r'IMG_2009_1.json')
-    img2008points1_tmp = img2008points1
-    img2009points1_tmp = img2009points1
+    img2008points1_tmp = img2008points1.copy()
+    img2009points1_tmp = img2009points1.copy()
     #  adjusting to camera system in pixels
-    for i in range(len(img2008points1)) :
+    for i in range(len(img2008points1_tmp)) :
         img2008points1_tmp[i, 1] = 3648 - img2008points1_tmp[i, 1]
         img2009points1_tmp[i, 1] = 3648 - img2009points1_tmp[i, 1]
     #  turn pixels to mm's
