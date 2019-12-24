@@ -130,61 +130,63 @@ class ImagePair(object):
         camPoints1 = self.__image1.ImageToCamera(imagePoints1)
         camPoints2 = self.__image2.ImageToCamera(imagePoints2)
 
+        groundPoints = []
+        e = []
         #  what is the method ?
         if Method == 'geometric':
-            f_row1 = np.zeros((1, camPoints1.shape[0]))
-            f_row2 = np.zeros((1, camPoints2.shape[0]))
-            for i in range(len(f_row1)):
-                f_row1[i] = -self.__image1.camera.focalLength
-            for i in range(len(f_row2)):
-                f_row2[i] = -self.__image2.camera.focalLength
+            for i in range(camPoints1.shape[0]):
+                # following the geometric method for forward intersection:
+                x1 = np.hstack((camPoints1[i, :], -self.__image1.camera.focalLength)) / 1000
+                x2 = np.hstack((camPoints2[i, :], -self.__image2.camera.focalLength)) / 1000
+                v1 = np.dot(self.__image1.rotationMatrix, x1)
+                v1 = np.reshape((v1/la.norm(v1)), (3,1))
+                v2 = np.dot(self.__image2.rotationMatrix, x2)
+                v2 = np.reshape((v2/la.norm(v2)), (3,1))
 
-            camPoints1 = np.hstack((camPoints1, f_row1.T)).T
-            camPoints2 = np.hstack((camPoints2, f_row2.T)).T
+                v1vt = np.dot(v1, v1.T)
+                v2vt = np.dot(v2, v2.T)
+                I = np.eye(v1.shape[0])
 
-            v1 = np.dot(self.__image1.rotationMatrix, camPoints1) / 1000
-            v2 = np.dot(self.__image2.rotationMatrix, camPoints2) / 1000
+                A1 = I - v1vt
+                A2 = I - v2vt
 
-            v1vt = np.dot(v1, v1.T)
-            v2vt = np.dot(v2, v2.T)
-            I = np.eye(v1vt.shape[1])
+                l1 = np.dot(A1, o1)
+                l2 = np.dot(A2, o2)
 
-            A1 = I - v1vt
-            A2 = I - v2vt
+                A = np.vstack((A1, A2))
+                l = np.hstack((l1, l2))
+                # computing the point in the world system and the residuals
+                X = np.dot(la.inv(np.dot(A.T, A)), np.dot(A.T, l))
+                e1 = np.dot((I - v1vt), X - o1)
+                e2 = np.dot((I - v2vt), X - o2)
 
-            l1 = np.dot(A1, o1)
-            l2 = np.dot(A2, o2)
+                e.append((np.abs(e1)+np.abs(e2))/2)
+                groundPoints.append(X)
 
-            A = np.hstack((A1, A2))
-            l = np.hstack((l1, l2))
+            return np.array(groundPoints), np.array(e)
 
-            X = np.dot(la.inv(np.dot(A.T, A)), np.dot(A.T, l))
-
-            return X
 
         elif Method == 'vector':
 
-            groundPoints = []
-
             for i in range(camPoints1.shape[0]):
-                x1 = np.hstack((camPoints1[i, :], self.__image1.camera.focalLength)) / 1000
-                x2 = np.hstack((camPoints2[i, :], self.__image2.camera.focalLength)) / 1000
+                x1 = np.hstack((camPoints1[i, :], -self.__image1.camera.focalLength)) / 1000
+                x2 = np.hstack((camPoints2[i, :], -self.__image2.camera.focalLength)) / 1000
                 v1 = np.dot(self.__image1.rotationMatrix, x1)
-                v2 = np.dot(self.__image1.rotationMatrix, x2)
+                v1 = v1 / la.norm(v1)
+                v2 = np.dot(self.__image2.rotationMatrix, x2)
+                v2 = v2 / la.norm(v2)
 
                 mat_inv = np.array([[np.dot(v1, v1), np.dot(-v1, v2)], [np.dot(v1, v2), np.dot(-v2, v2)]])
                 mat = np.array([[np.dot((o2 - o1), v1)], [np.dot((o2 - o1), v2)]])
 
                 lam = np.dot(la.inv(mat_inv), mat)
 
-                groundPoints.append(((o1 + np.dot(float(lam[0]), v1)) + (o2 + np.dot(float(lam[1]), v2))) / 2)
+                f = o1 + np.dot(float(lam[0]), v1)
+                g = o2 + np.dot(float(lam[1]), v2)
+                groundPoints.append((f+g)/2)
+                e.append((f-g)/2)
 
-            return np.transpose(np.array(groundPoints))
-
-
-
-
-
+            return np.array(groundPoints), np.array(e)
 
     def ComputeDependentRelativeOrientation(self, imagePoints1, imagePoints2, initialValues):
         """
@@ -351,9 +353,15 @@ class ImagePair(object):
         :rtype: np.array nx2
 
         """
-        pass  # delete after implementation
+        pass  # you need to know what image to use (?)
 
+        for i in range(groundPoints.shape[0]):
+            x = xp - (f)*(((r11*(groundPoints[i,0]-X0) + r21*(groundPoints[i,1]-Y0) + r31*(groundPoints[i,2]-Z0))/(r13*(groundPoints[i,0]-X0) + r23*(groundPoints[i,1]-Y0 + r33*(groundPoints[i,2]-Z0)))))
+            y = yp - (f)*(((r12*(groundPoints[i,0]-X0) + r22*(groundPoints[i,1]-Y0) + r32*(groundPoints[i,2]-Z0))/(r13*(groundPoints[i,0]-X0) + r23*(groundPoints[i,1]-Y0 + r33*(groundPoints[i,2]-Z0)))))
 
+            camPoints.append([x,y])
+
+        return np.array(camPoints)
 
     def RotationLevelModel(self, constrain1, constrain2):
         """
