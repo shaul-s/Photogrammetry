@@ -18,12 +18,7 @@ if __name__ == "__main__" :
 
     pixel_size = 2.4e-3  # [mm]
 
-    # creating two camera objects
-    cam1 = cam.Camera(focal * pixel_size, np.array([xp * pixel_size, yp * pixel_size]), None, None, None)
-    image2008 = sg.SingleImage(cam1)
-    image2009 = sg.SingleImage(cam1)
-    image2010 = sg.SingleImage(cam1)
-
+    #  reading homologue points
     img2008points1 = rd.Reader.ReadSampleFile(r'IMG_2008_1.json')
     img2009points1 = rd.Reader.ReadSampleFile(r'IMG_2009_1.json')
     img2009points2 = rd.Reader.ReadSampleFile(r'IMG_2009_2.json')
@@ -54,6 +49,18 @@ if __name__ == "__main__" :
     img2009points1mm = img2009points1_tmp * pixel_size
     img2009points2mm = img2009points2_tmp * pixel_size
     img2010points2mm = img2010points2_tmp * pixel_size
+
+    # creating three camera objects for the purpose of inner orientation for every photo
+    cam1 = cam.Camera(focal * pixel_size, np.array([xp * pixel_size, yp * pixel_size]), None, None, img2008points1mm)
+    cam2 = cam.Camera(focal * pixel_size, np.array([xp * pixel_size, yp * pixel_size]), None, None, img2009points1mm)
+    cam3 = cam.Camera(focal * pixel_size, np.array([xp * pixel_size, yp * pixel_size]), None, None, img2010points2mm)
+    image2008 = sg.SingleImage(cam1)
+    image2009 = sg.SingleImage(cam2)
+    image2010 = sg.SingleImage(cam3)
+
+    image2008.ComputeInnerOrientation(img2008points1)
+    image2009.ComputeInnerOrientation(img2009points1)
+    image2010.ComputeInnerOrientation(img2010points2mm)
 
     #
     imgPair_model1 = ip.ImagePair(image2008, image2009)

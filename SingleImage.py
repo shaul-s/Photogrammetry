@@ -121,10 +121,6 @@ class SingleImage(object):
 
         :rtype: dict
 
-        .. warning::
-
-            This function is empty, need implementation
-
         .. note::
 
             - Don't forget to update the ``self.__innerOrinetationParameters`` member. You decide the type
