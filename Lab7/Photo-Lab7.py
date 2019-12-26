@@ -66,6 +66,7 @@ if __name__ == "__main__" :
     #  creating ImagePair objects for each model and computing relative orientaiton !
     imgPair_model1 = ip.ImagePair(image2008, image2009)
     imgPair_model2 = ip.ImagePair(image2009, image2010)
+
     relativeOrientation_model1 = imgPair_model1.ComputeDependentRelativeOrientation(img2008points1mm, img2009points1mm,
                                                                                     np.array([0, 0, 0, 0, 0]))
     relativeOrientation_model2 = imgPair_model2.ComputeDependentRelativeOrientation(img2009points2mm, img2010points2mm,
@@ -107,23 +108,23 @@ if __name__ == "__main__" :
 
     #  drawing wire frame model
     ax = fig_orthographic.add_subplot(111, projection='3d')
-    x1 = framePoints[:, 0] * 10;
-    x2 = cPoints[0 :-5, 0] * 10;
-    x3 = box1[:, 0] * 10;
+    x1 = framePoints[:, 0] * 10
+    x2 = cPoints[0 :-5, 0] * 10
+    x3 = box1[:, 0] * 10
     x4 = triangle[:, 0] * 10
-    y1 = framePoints[:, 1] * 10;
-    y2 = cPoints[0 :-5, 1] * 10;
-    y3 = box1[:, 1] * 10;
+    y1 = framePoints[:, 1] * 10
+    y2 = cPoints[0 :-5, 1] * 10
+    y3 = box1[:, 1] * 10
     y4 = triangle[:, 1] * 10
-    z1 = framePoints[:, 2] * 10;
-    z2 = cPoints[0 :-5, 2] * 10;
-    z3 = box1[:, 2] * 10;
+    z1 = framePoints[:, 2] * 10
+    z2 = cPoints[0 :-5, 2] * 10
+    z3 = box1[:, 2] * 10
     z4 = triangle[:, 2] * 10
-    x5 = box2[:, 0] * 10;
+    x5 = box2[:, 0] * 10
     x6 = box3[:, 0] * 10
-    y5 = box2[:, 1] * 10;
+    y5 = box2[:, 1] * 10
     y6 = box3[:, 1] * 10
-    z5 = box2[:, 2] * 10;
+    z5 = box2[:, 2] * 10
     z6 = box3[:, 2] * 10
 
     ax.scatter(x1, y1, z1, marker='o', c='r', s=50)
