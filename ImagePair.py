@@ -3,6 +3,8 @@ from SingleImage import SingleImage
 from MatrixMethods import Compute3DRotationMatrix, Compute3DRotationDerivativeMatrix, ComputeSkewMatrixFromVector
 import numpy as np
 from scipy import linalg as la
+import PhotoViewer as pv
+
 
 
 class ImagePair(object) :
@@ -365,6 +367,7 @@ class ImagePair(object) :
         """
         cameraPoints1 = self.__image1.ImageToCamera(imagePoints1)
         cameraPoints2 = self.__image2.ImageToCamera(imagePoints2)
+
         if Method == 'vector' :
             return self.vectorIntersction(cameraPoints1, cameraPoints2)
         elif Method == 'geometric' :
@@ -548,6 +551,36 @@ class ImagePair(object) :
             This function is empty, needs implementation
 
         """
+        pass  # didn't implement
+
+    def drawImagePair(self, modelPoints, ax) :
+        """
+        Drawing the model images plane, perspective centers and ray intersection
+        :param modelPoints: the points that were computed in the model system
+
+        :type modelPoints: np.array nx3
+
+        :return: None (plotting)
+        """
+
+        pv.drawOrientation(self.RotationMatrix_Image1,
+                           np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)), 2, ax)
+        pv.drawOrientation(self.RotationMatrix_Image2,
+                           np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)), 2, ax)
+
+        pv.drawImageFrame(5472 * 2.4e-3, 3648 * 2.4e-3, self.RotationMatrix_Image1,
+                          np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)),
+                          4248.06 * 2.4e-3, 1, ax)
+        pv.drawImageFrame(5472 * 2.4e-3, 3648 * 2.4e-3, self.RotationMatrix_Image2,
+                          np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)),
+                          4248.06 * 2.4e-3, 1, ax)
+
+        pv.drawRays(modelPoints * 10,
+                    np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)), ax, 'gray')
+        pv.drawRays(modelPoints * 10,
+                    np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)), ax, 'gray')
+
+
 
 
 if __name__ == '__main__' :
