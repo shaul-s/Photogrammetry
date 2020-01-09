@@ -18,7 +18,10 @@ class ImageTriple(object):
         """
         self.__imagePair1 = imagePair1
         self.__imagePair2 = imagePair2
-        self.__isSolved = False  # Flag for the relative orientation for both models
+        if self.imagePair1.isSolved and self.imagePair2.isSolved :
+            self.__isSolved = True  # Flag for the relative orientation for both models
+        else :
+            self.__isSolved = False
 
         @property
         def isSolved(self):

@@ -243,7 +243,6 @@ class ImagePair(object) :
             new.ComputeDependentRelativeOrientation(imagePoints1, imagePoints2, np.array([1, 0, 0, 0, 0, 0])))
 
         """
-        # bb = np.array([[0, - initialValues[2], initialValues[1]], [initialValues[2], 0, -initialValues[0]], [-initialValues[1], initialValues[0], 0]])
 
         zs = np.full((1, len(imagePoints1)), -self.__image1.camera.focalLength)
         imagePoints1 = np.hstack((imagePoints1, np.transpose(zs)))
@@ -276,9 +275,10 @@ class ImagePair(object) :
 
         sigmaX = sig_squared * la.inv(N)
 
+        self.__isSolved = True
+
         return {"Relative Orientation Parameters" : initialValues, "Variance-Covariance Matrix" : sigmaX}
 
-        print('hi')
 
     def Build_A_B_W(self, cameraPoints1, cameraPoints2, x) :
         """
@@ -349,8 +349,8 @@ class ImagePair(object) :
         """
         Mapping points from image space to model space
 
-        :param imagePoints1: points from the first image in mm
-        :param imagePoints2: points from the second image in mm
+        :param imagePoints1: points from the first image in pix
+        :param imagePoints2: points from the second image in pix
         :param Method: method for intersection
 
         :type imagePoints1: np.array nx2

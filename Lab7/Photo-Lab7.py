@@ -61,7 +61,7 @@ if __name__ == "__main__" :
 
     image2008.ComputeInnerOrientation(img2008points1)
     image2009.ComputeInnerOrientation(img2009points1)
-    image2010.ComputeInnerOrientation(img2010points2mm)
+    image2010.ComputeInnerOrientation(img2010points2)
 
     #  creating ImagePair objects for each model and computing relative orientaiton !
     imgPair_model1 = ip.ImagePair(image2008, image2009)
