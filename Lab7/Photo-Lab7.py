@@ -104,7 +104,7 @@ if __name__ == "__main__" :
     framePoints = model1_framepoints[0]
     imgPair_model1.drawImagePair(framePoints, ax)
     # ax.view_init(-1, 0)
-    # plt.show()
+    plt.show()
 
     #  drawing wire frame model
     ax = fig_orthographic.add_subplot(111, projection='3d')

@@ -34,6 +34,28 @@ class ImagePair(object) :
         return self.__isSolved
 
     @property
+    def image1(self) :
+        """
+        first image in the pair
+
+        :return: image
+
+        :rtype: SingleImage
+        """
+        return self.__image1
+
+    @property
+    def image2(self) :
+        """
+        first image in the pair
+
+        :return: image
+
+        :rtype: SingleImage
+        """
+        return self.__image2
+
+    @property
     def RotationMatrix_Image1(self) :
         """
         Rotation matrix of the first image
@@ -564,20 +586,20 @@ class ImagePair(object) :
         """
 
         pv.drawOrientation(self.RotationMatrix_Image1,
-                           np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)), 2, ax)
+                           np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)), 100, ax)
         pv.drawOrientation(self.RotationMatrix_Image2,
-                           np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)), 2, ax)
+                           np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)), 100, ax)
 
         pv.drawImageFrame(5472 * 2.4e-3, 3648 * 2.4e-3, self.RotationMatrix_Image1,
                           np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)),
-                          4248.06 * 2.4e-3, 1, ax)
+                          4248.06 * 2.4e-3, 100, ax)
         pv.drawImageFrame(5472 * 2.4e-3, 3648 * 2.4e-3, self.RotationMatrix_Image2,
                           np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)),
-                          4248.06 * 2.4e-3, 1, ax)
+                          4248.06 * 2.4e-3, 100, ax)
 
-        pv.drawRays(modelPoints * 10,
+        pv.drawRays(modelPoints * 1000,
                     np.reshape(self.PerspectiveCenter_Image1, (self.PerspectiveCenter_Image1.size, 1)), ax, 'gray')
-        pv.drawRays(modelPoints * 10,
+        pv.drawRays(modelPoints * 1000,
                     np.reshape(self.PerspectiveCenter_Image2, (self.PerspectiveCenter_Image2.size, 1)), ax, 'gray')
 
 

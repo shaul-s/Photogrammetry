@@ -3,6 +3,7 @@ import Reader as rd
 import Camera as cam
 import SingleImage as sg
 import ImagePair as ip
+import ImageTriple as it
 from matplotlib import pyplot as plt
 import MatrixMethods as mm
 from scipy import linalg as la
@@ -94,6 +95,28 @@ if __name__ == "__main__" :
     #  computing points in both model systems
     model1uvw = imgPair_model1.ImagesToModel(img08model1, img09model12, 'vector')
     model2uvw = imgPair_model2.ImagesToModel(img09model12, img10model2, 'vector')
+
+    #  creating new instance of imageTriple
+    imageTriple = it.ImageTriple(imgPair_model1, imgPair_model2)
+
+    #  calling drawModels
+    imageTriple.drawModles(imgPair_model1, imgPair_model2, model1uvw[0], model2uvw[0])
+    # plt.show()
+
+    #  computing the scale between models with ALL homologue points
+    scales = []
+    cameraPoints1 = imgPair_model1.image1.ImageToCamera(img08model1)
+    cameraPoints2 = imgPair_model1.image2.ImageToCamera(img09model12)
+    cameraPoints3 = imgPair_model2.image2.ImageToCamera(img10model2)
+    for i in range(cameraPoints1.shape[0]) :
+        scales.append(
+            imageTriple.ComputeScaleBetweenModels(cameraPoints1[i, :], cameraPoints2[i, :], cameraPoints3[i, :]))
+
+    scales = np.reshape(np.array(scales), (len(scales), 1))
+
+
+
+
 
 
     print("hi")
