@@ -5,8 +5,7 @@ import SingleImage as sg
 import ImagePair as ip
 import ImageTriple as it
 from matplotlib import pyplot as plt
-import MatrixMethods as mm
-from scipy import linalg as la
+
 
 if __name__ == "__main__" :
     #  computing model link without scale
@@ -100,23 +99,48 @@ if __name__ == "__main__" :
     imageTriple = it.ImageTriple(imgPair_model1, imgPair_model2)
 
     #  calling drawModels
-    imageTriple.drawModles(imgPair_model1, imgPair_model2, model1uvw[0], model2uvw[0])
+    # imageTriple.drawModles(imgPair_model1, imgPair_model2, model1uvw[0], model2uvw[0])
     # plt.show()
 
     #  computing the scale between models with ALL homologue points
     scales = []
+    lams3 = []
     cameraPoints1 = imgPair_model1.image1.ImageToCamera(img08model1)
     cameraPoints2 = imgPair_model1.image2.ImageToCamera(img09model12)
     cameraPoints3 = imgPair_model2.image2.ImageToCamera(img10model2)
     for i in range(cameraPoints1.shape[0]) :
-        scales.append(
-            imageTriple.ComputeScaleBetweenModels(cameraPoints1[i, :], cameraPoints2[i, :], cameraPoints3[i, :]))
-
+        scale, lam3 = imageTriple.ComputeScaleBetweenModels(cameraPoints1[i, :], cameraPoints2[i, :],
+                                                            cameraPoints3[i, :])
+        scales.append(scale)
+        lams3.append(lam3)
     scales = np.reshape(np.array(scales), (len(scales), 1))
+    lams3 = np.reshape(np.array(lams3), (len(lams3), 1))
 
+    #  computing average and std
+    scale_mean = np.mean(scales)
+    scale_std = np.std(scales)
 
+    lams3_mean = np.mean(lams3)
 
+    #  computing o3 with scale !
+    o3 = imgPair_model1.PerspectiveCenter_Image2 + scale_mean * np.dot(imgPair_model1.RotationMatrix_Image2,
+                                                                       imgPair_model2.PerspectiveCenter_Image2)
 
+    #  doing this to make it possible to update the 3 images model
+    zs = np.full((1, len(cameraPoints1)), -focal * pixel_size)
+    model_points = imageTriple.RayIntersection(np.hstack((cameraPoints1, zs.T)), np.hstack((cameraPoints2, zs.T)),
+                                               np.hstack((cameraPoints3, zs.T)))
 
+    x = model_points[:, 0] * 1000
+    y = model_points[:, 1] * 1000
+    z = model_points[:, 2] * 1000
 
-    print("hi")
+    fig_orthographic = plt.figure()
+    ax = fig_orthographic.add_subplot(111, projection='3d')
+
+    imageTriple.drawImageTriple(model_points, ax)
+
+    ax.scatter(x, y, z, marker='o', c='r', s=50)
+    ax.plot(x, y, z, 'b-')
+
+    plt.show()
