@@ -480,11 +480,6 @@ class ImagePair(object) :
         :return: corresponding coordinates in the other coordinate system
 
         :rtype: np.array nx3
-
-        .. warning::
-
-            This function is empty, needs implementation
-
         """
 
     def geometricIntersection(self, cameraPoints1, cameraPoints2) :
