@@ -455,16 +455,16 @@ class ImagePair(object) :
 
         if ax1 == 'z':
             final_axis = np.cross(v1, v2)
-            v1 = np.reshape(v2, (3, 1))
-            v2 = np.reshape(final_axis, (3, 1))
-            v3 = np.reshape(v1, (3, 1))
+            x = np.reshape(v2, (3, 1))
+            y = np.reshape(final_axis, (3, 1))
+            z = np.reshape(v1, (3, 1))
         else:
             final_axis = np.cross(v2, v1)
-            v1 = np.reshape(v1, (3, 1))
-            v2 = np.reshape(final_axis, (3, 1))
-            v3 = np.reshape(v2, (3, 1))
+            x = np.reshape(v1, (3, 1))
+            y = np.reshape(final_axis, (3, 1))
+            z = np.reshape(v2, (3, 1))
 
-        return np.hstack((v1, v2, v3))
+        return np.hstack((x, y, z))
 
 
     def ModelTransformation(self, modelPoints, scale) :
