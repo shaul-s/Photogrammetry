@@ -423,6 +423,7 @@ class ImagePair(object) :
         return np.array(camPoints)
 
     def RotationLevelModel(self, constrain1, constrain2) :
+
         """
         Compute rotation matrix from the current model coordinate system to the other coordinate system
 
@@ -443,6 +444,28 @@ class ImagePair(object) :
             The two constrains should be given to two different axises, if not return identity matrix
 
         """
+        ax1, v1 = constrain1[0], constrain1[1]
+        ax2, v2 = constrain2[0], constrain2[1]
+
+        if la.norm(v1) != 1 or la.norm(v2) != 1:
+            raise ValueError('Your vectors are not normalized !')
+
+        if ax1 == ax2:
+            return np.eye(3)
+
+        if ax1 == 'z':
+            final_axis = np.cross(v1, v2)
+            v1 = np.reshape(v2, (3, 1))
+            v2 = np.reshape(final_axis, (3, 1))
+            v3 = np.reshape(v1, (3, 1))
+        else:
+            final_axis = np.cross(v2, v1)
+            v1 = np.reshape(v1, (3, 1))
+            v2 = np.reshape(final_axis, (3, 1))
+            v3 = np.reshape(v2, (3, 1))
+
+        return np.hstack((v1, v2, v3))
+
 
     def ModelTransformation(self, modelPoints, scale) :
         """

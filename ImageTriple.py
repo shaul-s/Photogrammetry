@@ -20,7 +20,7 @@ class ImageTriple(object):
         """
         self.__imagePair1 = imagePair1
         self.__imagePair2 = imagePair2
-        self.__o1 = np.array([0, 0, 0, ])
+        self.__o1 = np.array([0, 0, 0])
         self.__o2 = imagePair1.PerspectiveCenter_Image2
         self.__o3 = np.array([1.85391524, -0.54041259, 0.8277201])
         self.__R1 = np.eye(3)
