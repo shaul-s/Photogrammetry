@@ -197,6 +197,38 @@ if __name__ == "__main__":
     twentyone2fifteen = la.norm(model_sizes[1, :] - model_sizes[5, :])
 
     # object lengths
-    box_height = la.norm(model_sizes[8, :] - model_sizes[7, :])
+    scale = 0.4434848465254980  # the average that was computed before
+    model_world = imgPair_model1.ModelTransformation(model_sizes, R_modelToWorld1, scale)
+
+    box_length = la.norm(model_world[8, :] - model_world[7, :])
+    box_height = la.norm(model_world[10, :] - model_world[9, :])
+    box_depth = la.norm(model_world[12, :] - model_world[11, :])
+    triangle_side = la.norm(model_world[14, :] - model_world[13, :])
+    triangle_depth = la.norm(model_world[15, :] - model_world[14, :])
+
+    model_world_total = imgPair_model1.ModelTransformation(model_points, R_modelToWorld1, scale)
+
+    ### PLOTTING ###
+
+    x = model_points[:, 0] * 1000
+    y = model_points[:, 1] * 1000
+    z = model_points[:, 2] * 1000
+
+    x1 = model_world_total[:, 0] * 1000
+    y1 = model_world_total[:, 1] * 1000
+    z1 = model_world_total[:, 2] * 1000
+
+    fig_orthographic = plt.figure()
+    ax = fig_orthographic.add_subplot(111, projection='3d')
+
+    imageTriple.drawImageTriple(model_points, ax)
+    # imageTriple.drawImageTriple(model_world_total, ax)
+
+    ax.scatter(x, y, z, marker='o', c='r', s=50)
+    ax.scatter(x1, y1, z1, marker='o', c='r', s=50)
+    ax.plot(x, y, z, 'b-')
+    ax.plot(x1, y1, z1, 'b-')
+
+    plt.show()
 
     print('hi')
