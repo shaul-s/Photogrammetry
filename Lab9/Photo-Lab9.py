@@ -146,12 +146,89 @@ if __name__ == "__main__":
     model_zvect = imageTriple.RayIntersection(np.hstack((zvect1, zs.T)), np.hstack((zvect2, zs.T)),
                                               np.hstack((zvect3, zs.T)))
 
-    zvect_uvw = np.cross(model_zvect[2, :] - model_zvect[0, :], model_zvect[1, :] - model_zvect[0, :])
+    zvect_uvw = np.cross(model_zvect[1, :] - model_zvect[0, :], model_zvect[2, :] - model_zvect[0, :])
     zvect_uvw = zvect_uvw / la.norm(zvect_uvw)  # the z vector
 
     constrain1 = ('x', (model_zvect[1, :] - model_zvect[0, :]) / la.norm(model_zvect[1, :] - model_zvect[0, :]))
     constrain2 = ('z', zvect_uvw)
 
-    R_modelToWorld = imgPair_model1.RotationLevelModel(constrain1, constrain2)
+    R_modelToWorld1 = imgPair_model1.RotationLevelModel(constrain1, constrain2)
+
+    ### COMPUTING ANOTHER R_MODELTOWORLD MATRIX ###
+    zvect4 = rd.Reader.ReadSampleFile(r'z-vector4.json')
+    zvect5 = rd.Reader.ReadSampleFile(r'z-vector5.json')
+    zvect6 = rd.Reader.ReadSampleFile(r'z-vector6.json')
+
+    zvect4 = image2008.ImageToCamera(zvect4)
+    zvect5 = image2009.ImageToCamera(zvect5)
+    zvect6 = image2010.ImageToCamera(zvect6)
+
+    zs = np.full((1, len(zvect4)), -focal * pixel_size)
+    model_zvect2 = imageTriple.RayIntersection(np.hstack((zvect4, zs.T)), np.hstack((zvect5, zs.T)),
+                                               np.hstack((zvect6, zs.T)))
+
+    zvect_uvw2 = np.cross(model_zvect2[2, :] - model_zvect2[0, :], model_zvect2[1, :] - model_zvect2[0, :])
+    zvect_uvw2 = zvect_uvw2 / la.norm(zvect_uvw2)  # the 2nd z vector
+
+    constrain3 = ('x', (model_zvect2[1, :] - model_zvect2[0, :]) / la.norm(model_zvect2[1, :] - model_zvect2[0, :]))
+    constrain4 = ('z', zvect_uvw2)
+
+    R_modelToWorld2 = imgPair_model1.RotationLevelModel(constrain3, constrain4)
+
+    ### COMPUTING LENGTHS IN MODEL SYSTEM ###
+    sizes1 = rd.Reader.ReadSampleFile(r'sizes1.json')
+    sizes2 = rd.Reader.ReadSampleFile(r'sizes2.json')
+    sizes3 = rd.Reader.ReadSampleFile(r'sizes3.json')
+
+    sizes1 = image2008.ImageToCamera(sizes1)
+    sizes2 = image2009.ImageToCamera(sizes2)
+    sizes3 = image2010.ImageToCamera(sizes3)
+
+    zs = np.full((1, len(sizes1)), -focal * pixel_size)
+    model_sizes = imageTriple.RayIntersection(np.hstack((sizes1, zs.T)), np.hstack((sizes2, zs.T)),
+                                              np.hstack((sizes3, zs.T)))
+
+    # control points lengths
+    twelve2fifteen = la.norm(model_sizes[1, :] - model_sizes[0, :])
+    fifteen2eighteen = la.norm(model_sizes[2, :] - model_sizes[1, :])
+    eight2twelve = la.norm(model_sizes[3, :] - model_sizes[0, :])
+    sixteen2twentyone = la.norm(model_sizes[5, :] - model_sizes[4, :])
+    eight2eleven = la.norm(model_sizes[6, :] - model_sizes[3, :])
+    twentyone2fifteen = la.norm(model_sizes[1, :] - model_sizes[5, :])
+
+    # object lengths
+    scale = 0.4434848465254980  # the average that was computed before
+    model_world = imgPair_model1.ModelTransformation(model_sizes, R_modelToWorld1, scale)
+
+    box_length = la.norm(model_world[8, :] - model_world[7, :])
+    box_height = la.norm(model_world[10, :] - model_world[9, :])
+    box_depth = la.norm(model_world[12, :] - model_world[11, :])
+    triangle_side = la.norm(model_world[14, :] - model_world[13, :])
+    triangle_depth = la.norm(model_world[15, :] - model_world[14, :])
+
+    model_world_total = imgPair_model1.ModelTransformation(model_points, R_modelToWorld1, scale)
+
+    ### PLOTTING ###
+
+    x = model_points[:, 0] * 1000
+    y = model_points[:, 1] * 1000
+    z = model_points[:, 2] * 1000
+
+    x1 = model_world_total[:, 0] * 1000
+    y1 = model_world_total[:, 1] * 1000
+    z1 = model_world_total[:, 2] * 1000
+
+    fig_orthographic = plt.figure()
+    ax = fig_orthographic.add_subplot(111, projection='3d')
+
+    imageTriple.drawImageTriple(model_points, ax)
+    # imageTriple.drawImageTriple(model_world_total, ax)
+
+    ax.scatter(x, y, z, marker='o', c='r', s=50)
+    ax.scatter(x1, y1, z1, marker='o', c='r', s=50)
+    ax.plot(x, y, z, 'b-')
+    ax.plot(x1, y1, z1, 'b-')
+
+    plt.show()
 
     print('hi')

@@ -467,7 +467,7 @@ class ImagePair(object) :
         return np.hstack((x, y, z))
 
 
-    def ModelTransformation(self, modelPoints, scale) :
+    def ModelTransformation(self, modelPoints, rotation, scale):
         """
         Transform model from the current coordinate system to other coordinate system
 
@@ -480,12 +480,12 @@ class ImagePair(object) :
         :return: corresponding coordinates in the other coordinate system
 
         :rtype: np.array nx3
-
-        .. warning::
-
-            This function is empty, needs implementation
-
         """
+        worldPoints = []
+        for i in range(modelPoints.shape[0]):
+            worldPoints.append(scale * np.dot(rotation, modelPoints[i, :]))
+
+        return np.array(worldPoints)
 
     def geometricIntersection(self, cameraPoints1, cameraPoints2) :
         """
