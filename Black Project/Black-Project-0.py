@@ -41,7 +41,20 @@ def Compute3DRotationMatrix(omega, phi, kappa):
     return np.dot(np.dot(rOmega, rPhi), rKappa)
 
 
-def approximateImg2Camera(image_points, flight_height, dimensions, camera):
+def ApproximateImg2Camera(image_points, flight_height, dimensions, camera):
+    """
+    Compute approximate points in the camera system
+    :param image_points: the points in the image system
+    :param flight_height: height of flight
+    :param dimensions: image dimensions [cols, rows]
+    :param camera: camera class object
+
+    :type image_points: np.ndarray[nx2]
+    :type flight_height: float
+    :type dimensions: float tuple
+
+    :return: points in camera system [mm]
+    """
     camera_points = []
 
     cols = dimensions[0]
@@ -51,7 +64,7 @@ def approximateImg2Camera(image_points, flight_height, dimensions, camera):
 
     scale = h * 0.001 / f
 
-    for point in range(image_points[0]):
+    for point in image_points:
         x = scale * (point[2] - cols / 2)
         y = scale * (point[3] - rows / 2)
         camera_points.append([point[0], point[1], x, y])
@@ -59,7 +72,7 @@ def approximateImg2Camera(image_points, flight_height, dimensions, camera):
     return np.array(camera_points)
 
 
-def ComputeApproximateVals(camera_points, ground_points):
+def ComputeApproximateVals(camera_points, ground_points, focal):
     """
     Compute exterior orientation approximate values via 2-D conform transformation
 
@@ -75,9 +88,9 @@ def ComputeApproximateVals(camera_points, ground_points):
 
     # Find approximate values
     camera_points = camera_points.reshape(np.size(camera_points), 1)
-    groundPointsXY = ground_points[0:2, :].T
+    groundPointsXY = ground_points[:, 0:2]
     groundPointsXY = groundPointsXY.reshape(np.size(groundPointsXY), 1)
-    groundPointsZ = ground_points[2, :].T
+    groundPointsZ = ground_points[:, 2].T
 
     n = int(len(camera_points))  # number of observations
     u = 4  # 4 conform parameters
@@ -105,10 +118,10 @@ def ComputeApproximateVals(camera_points, ground_points):
     Y0 = X[1]
     kappa = np.arctan2(-X[3], X[2])
     lam = np.sqrt(X[2] ** 2 + X[3] ** 2)
-    Z0 = np.average(groundPointsZ) + (lam) * camera.focalLength
+    Z0 = np.average(groundPointsZ) + lam * focal * 0.001
 
     adjustment_results = {"X0": X0[0], "Y0": Y0[0], "Z0": Z0[0], "omega": 0, "phi": 0,
-                          "kappa": np.rad2deg(kappa[0])}
+                          "kappa": kappa[0]}
 
     return adjustment_results
 
@@ -122,16 +135,84 @@ if __name__ == "__main__":
 
     # camera object: focal, principal point #
     cam1 = Camera.Camera(100, [0, 0], None, None)
+    focal = 100
 
     # tkinter load data \
     # filename = tk.filedialog.askopenfilename()
 
     # image_points = np.loadtxt(tk.filedialog.askopenfile())
 
-    txt_file = tk.filedialog.askopenfile(mode='r').readlines()
+    control_points = tk.filedialog.askopenfile(mode='r', title='Select CONTROL POINTS file',
+                                               filetypes=[('Text File', '*.txt')]).readlines()
+    cp_samples = tk.filedialog.askopenfile(mode='r', title='Select CONTROL POINTS SAMPLE file',
+                                           filetypes=[('Text File', '*.txt')]).readlines()
+    tp_samples = tk.filedialog.askopenfile(mode='r', title='Select TIE POINTS file',
+                                           filetypes=[('Text File', '*.txt')]).readlines()
 
-    image_points = np.stack([line.split() for line in txt_file[1:-1][:]])
+    control_points = np.stack([line.split() for line in control_points[1:-1][:]]).astype(float)
+    cp_samples = np.stack([line.split() for line in cp_samples[1:-1][:]]).astype(float)
+    tp_samples = np.stack([line.split() for line in tp_samples[1:-1][:]]).astype(float)
 
-    camera_points = approximateImg2Camera(image_points, flight_height, [cols, rows], cam1)
+    # organizing points by image #
+    img1_cp = []
+    img1_tp = []
+    img2_cp = []
+    img2_tp = []
+    img3_cp = []
+    img3_tp = []
+    img4_cp = []
+    img4_tp = []
+    img5_cp = []
+    img5_tp = []
+    img6_cp = []
+    img6_tp = []
+
+    for point in cp_samples:
+        if point[0] == 1.0:
+            img1_cp.append(point)
+        elif point[0] == 2.0:
+            img2_cp.append(point)
+        elif point[0] == 3.0:
+            img3_cp.append(point)
+        elif point[0] == 4.0:
+            img4_cp.append(point)
+        elif point[0] == 5.0:
+            img5_cp.append(point)
+        else:
+            img6_cp.append(point)
+
+    imgs_cp = [np.array(img1_cp), np.array(img2_cp), np.array(img3_cp), np.array(img4_cp), np.array(img5_cp),
+               np.array(img6_cp)]
+
+    for point in tp_samples:
+        if point[0] == 1.0:
+            img1_tp.append(point)
+        elif point[0] == 2.0:
+            img2_tp.append(point)
+        elif point[0] == 3.0:
+            img3_tp.append(point)
+        elif point[0] == 4.0:
+            img4_tp.append(point)
+        elif point[0] == 5.0:
+            img5_tp.append(point)
+        else:
+            img6_tp.append(point)
+
+    imgs_tp = [np.array(img1_tp), np.array(img2_tp), np.array(img3_tp), np.array(img4_tp), np.array(img5_tp),
+               np.array(img6_tp)]
+
+    # computing appx exterior orientaiton vals for every img
+    appx_vals = []
+    for img in imgs_cp:
+        camera_points = []
+        ground_points = []
+        for point in img:
+            for cp in control_points:
+                if point[1] == cp[0]:
+                    camera_points.append(point[2:])
+                    ground_points.append(cp[1:])
+
+        appx_vals.append(ComputeApproximateVals(np.array(camera_points), np.array(ground_points), focal))
+
 
     print('hi')
