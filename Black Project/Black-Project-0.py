@@ -72,7 +72,7 @@ def ApproximateImg2Camera(image_points, flight_height, dimensions, camera):
     return np.array(camera_points)
 
 
-def ComputeApproximateVals(camera_points, ground_points, focal):
+def ComputeApproximateVals(camera_points, ground_points, focal, camera_num):
     """
     Compute exterior orientation approximate values via 2-D conform transformation
 
@@ -121,9 +121,57 @@ def ComputeApproximateVals(camera_points, ground_points, focal):
     Z0 = np.average(groundPointsZ) + lam * focal * 0.001
 
     adjustment_results = {"X0": X0[0], "Y0": Y0[0], "Z0": Z0[0], "omega": 0, "phi": 0,
-                          "kappa": kappa[0]}
+                          "kappa": kappa[0], "Camera number": camera_num}
 
     return adjustment_results
+
+
+def vectorIntersction(ext1, ext2, focal, cameraPoints1, cameraPoints2):
+    """
+    Ray Intersection based on vector calculations.
+
+    :param cameraPoints1: points in image space
+    :param cameraPoints2: corresponding image points
+    :param ext1: exterior orientation values for cam1
+    :param ext2: exterior orientation values for cam2
+
+    :type cameraPoints1: np.array nx2
+    :type cameraPoints2: np.array nx2
+    :type ext1: dict {X0,Y0,Z0,OMEGA,PHI,KAPPA,CAM_NUM}
+    :type ext2: dict
+
+    :return: groundPoints, e (the accuracy)
+
+    :rtype: np.array nx3, nx1
+
+    """
+    o1 = np.array([ext1["X0"], ext1["Y0"], ext1["Z0"]])
+    o2 = np.array([ext2["X0"], ext2["Y0"], ext2["Z0"]])
+    R1 = Compute3DRotationMatrix(ext1["omega"], ext1["phi"], ext1["kappa"])
+    R2 = Compute3DRotationMatrix(ext2["omega"], ext2["phi"], ext2["kappa"])
+    modelPoints = []
+    e = []
+    for i in range(1):
+        x1 = np.hstack((cameraPoints1[i:], -focal)) / 1000
+        x2 = np.hstack((cameraPoints2[i:], -focal)) / 1000
+        v1 = np.dot(R1, x1)
+        v1 = np.reshape(v1 / la.norm(v1), (3, 1))
+        v2 = np.dot(R2, x2)
+        v2 = np.reshape(v2 / la.norm(v2), (3, 1))
+
+        mat_inv = np.reshape(np.array([[np.dot(v1.T, v1), np.dot(-v1.T, v2)], [np.dot(v1.T, v2), np.dot(-v2.T, v2)]]),
+                             (2, 2))
+        mat = np.reshape(np.array([[np.dot((o2 - o1), v1)], [np.dot((o2 - o1), v2)]]), (2, 1))
+
+        lam = np.dot(la.inv(mat_inv), mat)
+
+        f = np.reshape(o1, (3, 1)) + np.dot(float(lam[0]), v1)
+        g = np.reshape(o2, (3, 1)) + np.dot(float(lam[1]), v2)
+        modelPoints.append((f + g) / 2)
+        e.append((f - g) / 2)
+
+    return np.reshape(np.array(modelPoints), (1, 3))  # , np.array(e)
+
 
 
 if __name__ == "__main__":
@@ -134,8 +182,8 @@ if __name__ == "__main__":
     flight_height = 20  # meter
 
     # camera object: focal, principal point #
-    cam1 = Camera.Camera(100, [0, 0], None, None)
     focal = 100
+    cam1 = Camera.Camera(focal, [0, 0], None, None)
 
     # tkinter load data \
     # filename = tk.filedialog.askopenfilename()
@@ -212,7 +260,23 @@ if __name__ == "__main__":
                     camera_points.append(point[2:])
                     ground_points.append(cp[1:])
 
-        appx_vals.append(ComputeApproximateVals(np.array(camera_points), np.array(ground_points), focal))
+        appx_vals.append(ComputeApproximateVals(np.array(camera_points), np.array(ground_points), focal, point[0]))
 
+    # computing appx values for every tie point
+    tiePoints = []
+    cmptd_points = []
+    for img1 in imgs_tp:
+        for img2 in imgs_tp:
+            for tp1 in img1:
+                for tp2 in img2:
+                    if tp1[0] != tp2[0] and tp1[1] == tp2[1] and tp1[1] not in cmptd_points:
+                        tiePoints.append(np.hstack((np.reshape(tp1[1], (1, 1)),
+                                                    vectorIntersction(appx_vals[int(tp1[0] - 1)],
+                                                                      appx_vals[int(tp2[0] - 1)], focal, tp1[2:4],
+                                                                      tp2[2:4]))))
+                        cmptd_points.append(tp1[1])
+                        break
+
+    tiePoints = np.reshape(np.array(tiePoints), (len(tiePoints), 4))
 
     print('hi')
