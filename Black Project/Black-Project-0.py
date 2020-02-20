@@ -279,4 +279,4 @@ if __name__ == "__main__":
 
     tiePoints = np.reshape(np.array(tiePoints), (len(tiePoints), 4))
 
-    print('hi')
+    print('hiya')
