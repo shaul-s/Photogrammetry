@@ -43,7 +43,6 @@ def Compute3DRotationMatrix(omega, phi, kappa):
     return np.dot(np.dot(rOmega, rPhi), rKappa)
 
 
-
 def ComputeApproximateVals(camera_points, ground_points, focal, camera_num):
     """
     Compute exterior orientation approximate values via 2-D conform transformation
@@ -173,15 +172,15 @@ def ComputeObservationVector(lb, img, groundPoints, camera_parameters):
     j = 0
     for i in range(n):
         r = ((lb[j] - camera_parameters["xp"]) * (lb[j] - camera_parameters["xp"]) + (
-                    lb[j + 1] - camera_parameters["yp"]) * (lb[j + 1] - camera_parameters["yp"])) ** 0.5
+                lb[j + 1] - camera_parameters["yp"]) * (lb[j + 1] - camera_parameters["yp"])) ** 0.5
         l0[j] = camera_parameters["xp"] - camera_parameters["f"] * rotated_XYZ[i, 0] / rotated_XYZ[i, 2] + lb[j] * (
-                    camera_parameters["k1"] * r ** 2 + camera_parameters["k2"] * r ** 4 + camera_parameters[
-                "k3"] * r ** 6) + camera_parameters["p1"] * (r ** 2 + 2 * lb[j] ** 2) + 2 * camera_parameters["p2"] * \
+                camera_parameters["k1"] * r ** 2 + camera_parameters["k2"] * r ** 4 + camera_parameters[
+            "k3"] * r ** 6) + camera_parameters["p1"] * (r ** 2 + 2 * lb[j] ** 2) + 2 * camera_parameters["p2"] * \
                 lb[j] * lb[j + 1] + camera_parameters["b1"] * lb[j] + camera_parameters["b2"] * lb[j + 1]
         l0[j + 1] = camera_parameters["yp"] - camera_parameters["f"] * rotated_XYZ[i, 1] / rotated_XYZ[i, 2] + lb[
             j + 1] * (camera_parameters["k1"] * r ** 2 + camera_parameters["k2"] * r ** 4 + camera_parameters[
             "k3"] * r ** 6) + 2 * camera_parameters["p1"] * lb[j] * lb[j + 1] + camera_parameters["p2"] * (
-                                r ** 2 + 2 * lb[j + 1] * lb[j + 1])
+                            r ** 2 + 2 * lb[j + 1] * lb[j + 1])
 
     # Computation of the observation vector based on approximate exterior orientation parameters:
     r = ()
@@ -195,15 +194,15 @@ if __name__ == "__main__":
     camera_parameters = {"f": 0, "xp": 0, "yp": 0, "k1": 0, "k2": 0, "k3": 0, "p1": 0, "p2": 0, "b1": 0, "b2": 0}
 
     # img dimensions #
-    cols = 4032  # pix
-    rows = 2268  # pix
+    cols = 1280  # pix
+    rows = 720  # pix
 
     # camera object: focal, principal point #
     focal = 26  # mm
 
     camera_parameters["f"] = focal
 
-    cam = Camera(focal, [0, 0], 0.3528, camera_parameters)
+    cam = Camera(focal, [0, 0], 1.4e-3, camera_parameters)
 
     # creating 6 images for calibration
     img0deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\0deg.json'))
@@ -249,12 +248,117 @@ if __name__ == "__main__":
     a_90deg = img90deg.ComputeDesignMatrix(ground_cp)
     a_225deg = img225deg.ComputeDesignMatrix(ground_cp)
 
-    A = np.vstack((a_0deg, a_30deg, a_45deg, a_60deg, a_90deg, a_225deg))
+    A = np.zeros((180, 46))
+    aa = la.block_diag(a_0deg[:, 0:6], a_30deg[:, 0:6], a_45deg[:, 0:6], a_60deg[:, 0:6], a_90deg[:, 0:6],
+                       a_225deg[:, 0:6])
+    A[:, 0:36] = aa
+    A[0:30, 36:46] = a_0deg[:, 6:16]
+    A[30:60, 36:46] = a_30deg[:, 6:16]
+    A[60:90, 36:46] = a_45deg[:, 6:16]
+    A[90:120, 36:46] = a_60deg[:, 6:16]
+    A[120:150, 36:46] = a_90deg[:, 6:16]
+    A[150:180, 36:46] = a_225deg[:, 6:16]
 
     N = np.dot(A.T, A)
     u = np.dot(A.T, l)
     deltaX = np.dot(la.inv(N), u)
 
+    # update EOF and camera pars
+    img0deg.exteriorOrientationParameters = np.reshape(img0deg.exteriorOrientationParameters + deltaX[0:6].T, (6, 1))
+    img30deg.exteriorOrientationParameters = np.reshape(img30deg.exteriorOrientationParameters + deltaX[6:12].T, (6, 1))
+    img45deg.exteriorOrientationParameters = np.reshape(img45deg.exteriorOrientationParameters + deltaX[12:18].T,
+                                                        (6, 1))
+    img60deg.exteriorOrientationParameters = np.reshape(img60deg.exteriorOrientationParameters + deltaX[18:24].T,
+                                                        (6, 1))
+    img90deg.exteriorOrientationParameters = np.reshape(img90deg.exteriorOrientationParameters + deltaX[24:30].T,
+                                                        (6, 1))
+    img225deg.exteriorOrientationParameters = np.reshape(img225deg.exteriorOrientationParameters + deltaX[30:36].T,
+                                                         (6, 1))
+
+    camera_parameters["f"] += deltaX[36]
+    camera_parameters["xp"] += deltaX[37]
+    camera_parameters["yp"] += deltaX[38]
+    camera_parameters["k1"] += deltaX[39]
+    camera_parameters["k2"] += deltaX[40]
+    camera_parameters["k3"] += deltaX[41]
+    camera_parameters["p1"] += deltaX[42]
+    camera_parameters["p2"] += deltaX[43]
+    camera_parameters["b1"] += deltaX[44]
+    camera_parameters["b2"] += deltaX[45]
+
+    cam = Camera(camera_parameters["f"], [camera_parameters["xp"], camera_parameters["yp"]], 1.4e-3, camera_parameters)
+
+    img0deg.camera = img30deg.camera = img45deg.camera = img60deg.camera = img90deg.camera = img225deg.camera = cam
+
+    while la.norm(deltaX[36:46]) > 1e-6:
+        lb0deg = img0deg.lb()
+        l0_0deg = img0deg.ComputeObservationVector(ground_cp)
+        lb30deg = img30deg.lb()
+        l0_30deg = img30deg.ComputeObservationVector(ground_cp)
+        lb45deg = img45deg.lb()
+        l0_45deg = img45deg.ComputeObservationVector(ground_cp)
+        lb60deg = img60deg.lb()
+        l0_60deg = img60deg.ComputeObservationVector(ground_cp)
+        lb90deg = img90deg.lb()
+        l0_90deg = img90deg.ComputeObservationVector(ground_cp)
+        lb225deg = img225deg.lb()
+        l0_225deg = img225deg.ComputeObservationVector(ground_cp)
+
+        lb = np.vstack((lb0deg, lb30deg, lb45deg, lb60deg, lb90deg, lb225deg))
+        l0 = np.vstack((l0_0deg, l0_30deg, l0_45deg, l0_60deg, l0_90deg, l0_225deg))
+
+        l = lb - l0
+
+        a_0deg = img0deg.ComputeDesignMatrix(ground_cp)
+        a_30deg = img30deg.ComputeDesignMatrix(ground_cp)
+        a_45deg = img45deg.ComputeDesignMatrix(ground_cp)
+        a_60deg = img60deg.ComputeDesignMatrix(ground_cp)
+        a_90deg = img90deg.ComputeDesignMatrix(ground_cp)
+        a_225deg = img225deg.ComputeDesignMatrix(ground_cp)
+
+        A = np.zeros((180, 46))
+        aa = la.block_diag(a_0deg[:, 0:6], a_30deg[:, 0:6], a_45deg[:, 0:6], a_60deg[:, 0:6], a_90deg[:, 0:6],
+                           a_225deg[:, 0:6])
+        A[:, 0:36] = aa
+        A[0:30, 36:46] = a_0deg[:, 6:16]
+        A[30:60, 36:46] = a_30deg[:, 6:16]
+        A[60:90, 36:46] = a_45deg[:, 6:16]
+        A[90:120, 36:46] = a_60deg[:, 6:16]
+        A[120:150, 36:46] = a_90deg[:, 6:16]
+        A[150:180, 36:46] = a_225deg[:, 6:16]
+
+        N = np.dot(A.T, A)
+        u = np.dot(A.T, l)
+        deltaX = np.dot(la.inv(N), u)
+        # update EOF and camera pars
+        img0deg.exteriorOrientationParameters = np.reshape(img0deg.exteriorOrientationParameters + deltaX[0:6],
+                                                           (6, 1))
+        img30deg.exteriorOrientationParameters = np.reshape(img30deg.exteriorOrientationParameters + deltaX[6:12],
+                                                            (6, 1))
+        img45deg.exteriorOrientationParameters = np.reshape(img45deg.exteriorOrientationParameters + deltaX[12:18],
+                                                            (6, 1))
+        img60deg.exteriorOrientationParameters = np.reshape(img60deg.exteriorOrientationParameters + deltaX[18:24],
+                                                            (6, 1))
+        img90deg.exteriorOrientationParameters = np.reshape(img90deg.exteriorOrientationParameters + deltaX[24:30],
+                                                            (6, 1))
+        img225deg.exteriorOrientationParameters = np.reshape(img225deg.exteriorOrientationParameters + deltaX[30:36],
+                                                             (6, 1))
+
+        camera_parameters["f"] += deltaX[36]
+        camera_parameters["xp"] += deltaX[37]
+        camera_parameters["yp"] += deltaX[38]
+        camera_parameters["k1"] += deltaX[39]
+        camera_parameters["k2"] += deltaX[40]
+        camera_parameters["k3"] += deltaX[41]
+        camera_parameters["p1"] += deltaX[42]
+        camera_parameters["p2"] += deltaX[43]
+        camera_parameters["b1"] += deltaX[44]
+        camera_parameters["b2"] += deltaX[45]
+
+        cam = Camera(camera_parameters["f"], [camera_parameters["xp"], camera_parameters["yp"]], 1.4e-3,
+                     camera_parameters)
+
+        img0deg.camera = img30deg.camera = img45deg.camera = img60deg.camera = img90deg.camera = img225deg.camera = cam
 
     # tkinter load data \
     # filename = tk.filedialog.askopenfilename()

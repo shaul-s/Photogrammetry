@@ -35,6 +35,19 @@ class SingleImage(object):
         """
         return self.__camera
 
+    @camera.setter
+    def camera(self, val):
+        """
+        Set the camera parameters
+
+        :param val: value for setting
+
+        :type: dict
+
+        """
+
+        self.__camera = val
+
     @property
     def exteriorOrientationParameters(self):
         r"""
@@ -326,8 +339,8 @@ class SingleImage(object):
         scale = self.camera.pixelSize
 
         for point in image_points:
-            x = scale * (point[0] - cols / 2)
-            y = -scale * (point[1] - rows / 2)
+            x = scale * (point[0] - cols / 2) - self.camera.principalPoint[0]
+            y = -scale * (point[1] - rows / 2) - self.camera.principalPoint[1]
             camera_points.append([x, y])
 
         return np.array(camera_points)
@@ -361,7 +374,8 @@ class SingleImage(object):
         for i in range(n):
             r = ((lb[j] - self.camera.parameters["xp"]) * (lb[j] - self.camera.parameters["xp"]) + (
                     lb[j + 1] - self.camera.parameters["yp"]) * (lb[j + 1] - self.camera.parameters["yp"])) ** 0.5
-            l0[j] = self.camera.parameters["xp"] - self.camera.parameters["f"] * rotated_XYZ[i, 0] / rotated_XYZ[i, 2] + \
+            l0[j] = self.camera.parameters["xp"] - self.camera.parameters["f"] * (
+                    rotated_XYZ[i, 0] / rotated_XYZ[i, 2]) + \
                     lb[j] * (
                             self.camera.parameters["k1"] * r ** 2 + self.camera.parameters["k2"] * r ** 4 +
                             self.camera.parameters[
@@ -370,8 +384,8 @@ class SingleImage(object):
                         "p2"] * lb[j] * lb[j + 1] + self.camera.parameters["b1"] * lb[j] + self.camera.parameters[
                         "b2"] * lb[
                         j + 1]
-            l0[j + 1] = self.camera.parameters["yp"] - self.camera.parameters["f"] * rotated_XYZ[i, 1] / rotated_XYZ[
-                i, 2] + lb[
+            l0[j + 1] = self.camera.parameters["yp"] - self.camera.parameters["f"] * (rotated_XYZ[i, 1] / rotated_XYZ[
+                i, 2]) + lb[
                             j + 1] * (self.camera.parameters["k1"] * r ** 2 + self.camera.parameters["k2"] * r ** 4 +
                                       self.camera.parameters[
                                           "k3"] * r ** 6) + 2 * self.camera.parameters["p1"] * lb[j] * lb[j + 1] + \
@@ -474,10 +488,11 @@ class SingleImage(object):
         j = 0
         k = -1
         lb = self.ApproximateImg2Camera(self.__cp).reshape(np.size(self.__cp), 1)
-        r = ((lb[j] - self.camera.parameters["xp"]) * (lb[j] - self.camera.parameters["xp"]) + (
-                lb[j + 1] - self.camera.parameters["yp"]) * (lb[j + 1] - self.camera.parameters["yp"])) ** 0.5
+
         for i in range(int(n / 2)):
             k += 1
+            r = ((lb[j] - self.camera.parameters["xp"]) * (lb[j] - self.camera.parameters["xp"]) + (
+                    lb[j + 1] - self.camera.parameters["yp"]) * (lb[j + 1] - self.camera.parameters["yp"])) ** 0.5
             a1[j, 0] = -rT1g[k] / rT3g[k]
             a1[j, 1] = 1 + 2 * (lb[j] - self.camera.parameters["xp"]) * (lb[j] * (
                     self.camera.parameters["k1"] + 2 * self.camera.parameters["k2"] * r ** 2 + 3 *
@@ -496,20 +511,17 @@ class SingleImage(object):
             a1[j + 1, 1] = 2 * (lb[j] - self.camera.parameters["xp"]) * (lb[j + 1] * (
                     self.camera.parameters["k1"] + 2 * self.camera.parameters["k2"] * r ** 2 + 3 *
                     self.camera.parameters["k3"] * r ** 4) + self.camera.parameters["p1"])
-            a1[j + 1, 2] = 1 - 2 * (lb[j + 1] - self.camera.parameters["yp"]) * (lb[j + 1] * (
+            a1[j + 1, 2] = 1 + 2 * (lb[j + 1] - self.camera.parameters["yp"]) * (lb[j + 1] * (
                     self.camera.parameters["k1"] + 2 * self.camera.parameters["k2"] * r ** 2 + 3 *
                     self.camera.parameters["k3"] * r ** 4) + self.camera.parameters["p2"])
             a1[j + 1, 3] = lb[j + 1] * r ** 2
             a1[j + 1, 4] = lb[j + 1] * r ** 4
             a1[j + 1, 5] = lb[j + 1] * r ** 6
             a1[j + 1, 6] = 2 * lb[j] * lb[j + 1]
-            a1[j + 1, 7] = (lb[j + 1] - self.camera.parameters["yp"]) ** 2 + 2 * lb[j + 1] ** 2 + (
-                    lb[j] - self.camera.parameters["xp"]) ** 2
+            a1[j + 1, 7] = r ** 2 + 2 * lb[j + 1] * lb[j + 1]
             a1[j + 1, 8] = 0
             a1[j + 1, 9] = 0
             j += 2
-            if k == 14:
-                k = -1
 
         return np.hstack((a, a1))
 
