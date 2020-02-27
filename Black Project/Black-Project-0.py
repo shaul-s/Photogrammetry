@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import linalg as la
-import Camera
+from Camera import Camera
+from SingleImage import SingleImage
+from Reader import Reader
 import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename
@@ -40,36 +42,6 @@ def Compute3DRotationMatrix(omega, phi, kappa):
 
     return np.dot(np.dot(rOmega, rPhi), rKappa)
 
-
-def ApproximateImg2Camera(image_points, flight_height, dimensions, camera):
-    """
-    Compute approximate points in the camera system
-    :param image_points: the points in the image system
-    :param flight_height: height of flight
-    :param dimensions: image dimensions [cols, rows]
-    :param camera: camera class object
-
-    :type image_points: np.ndarray[nx2]
-    :type flight_height: float
-    :type dimensions: float tuple
-
-    :return: points in camera system [mm]
-    """
-    camera_points = []
-
-    cols = dimensions[0]
-    rows = dimensions[1]
-    f = camera.focalLength()
-    h = flight_height
-
-    scale = h * 0.001 / f
-
-    for point in image_points:
-        x = scale * (point[2] - cols / 2)
-        y = scale * (point[3] - rows / 2)
-        camera_points.append([point[0], point[1], x, y])
-
-    return np.array(camera_points)
 
 
 def ComputeApproximateVals(camera_points, ground_points, focal, camera_num):
@@ -173,17 +145,116 @@ def vectorIntersction(ext1, ext2, focal, cameraPoints1, cameraPoints2):
     return np.reshape(np.array(modelPoints), (1, 3))  # , np.array(e)
 
 
+def ComputeObservationVector(lb, img, groundPoints, camera_parameters):
+    """
+    Compute observation vector for solving the exterior orientation parameters of a single image
+    based on their approximate values
+
+    :param groundPoints: Ground coordinates of the control points
+    :param camera_parameters
+
+    :type groundPoints: np.array nx3
+
+    :return: Vector l0
+
+    :rtype: np.array nx1
+    """
+
+    n = groundPoints.shape[0]  # number of points
+
+    # Coordinates subtraction
+    dX = groundPoints[:, 0] - img.exteriorOrientationParameters[0]
+    dY = groundPoints[:, 1] - img.exteriorOrientationParameters[1]
+    dZ = groundPoints[:, 2] - img.exteriorOrientationParameters[2]
+    dXYZ = np.vstack([dX, dY, dZ])
+    rotated_XYZ = np.dot(img.rotationMatrix.T, dXYZ).T
+
+    l0 = np.empty(n * 2)
+    j = 0
+    for i in range(n):
+        r = ((lb[j] - camera_parameters["xp"]) * (lb[j] - camera_parameters["xp"]) + (
+                    lb[j + 1] - camera_parameters["yp"]) * (lb[j + 1] - camera_parameters["yp"])) ** 0.5
+        l0[j] = camera_parameters["xp"] - camera_parameters["f"] * rotated_XYZ[i, 0] / rotated_XYZ[i, 2] + lb[j] * (
+                    camera_parameters["k1"] * r ** 2 + camera_parameters["k2"] * r ** 4 + camera_parameters[
+                "k3"] * r ** 6) + camera_parameters["p1"] * (r ** 2 + 2 * lb[j] ** 2) + 2 * camera_parameters["p2"] * \
+                lb[j] * lb[j + 1] + camera_parameters["b1"] * lb[j] + camera_parameters["b2"] * lb[j + 1]
+        l0[j + 1] = camera_parameters["yp"] - camera_parameters["f"] * rotated_XYZ[i, 1] / rotated_XYZ[i, 2] + lb[
+            j + 1] * (camera_parameters["k1"] * r ** 2 + camera_parameters["k2"] * r ** 4 + camera_parameters[
+            "k3"] * r ** 6) + 2 * camera_parameters["p1"] * lb[j] * lb[j + 1] + camera_parameters["p2"] * (
+                                r ** 2 + 2 * lb[j + 1] * lb[j + 1])
+
+    # Computation of the observation vector based on approximate exterior orientation parameters:
+    r = ()
+    l0[::2] = camera_parameters["xp"] - camera_parameters[0] * rotated_XYZ[:, 0] / rotated_XYZ[:, 2]
+    l0[1::2] = camera_parameters["yp"] - camera_parameters[0] * rotated_XYZ[:, 1] / rotated_XYZ[:, 2]
+
+    return l0
+
 
 if __name__ == "__main__":
+    camera_parameters = {"f": 0, "xp": 0, "yp": 0, "k1": 0, "k2": 0, "k3": 0, "p1": 0, "p2": 0, "b1": 0, "b2": 0}
+
     # img dimensions #
-    cols = 800  # pix
-    rows = 600  # pix
-    # flight height #
-    flight_height = 20  # meter
+    cols = 4032  # pix
+    rows = 2268  # pix
 
     # camera object: focal, principal point #
-    focal = 100
-    cam1 = Camera.Camera(focal, [0, 0], None, None)
+    focal = 26  # mm
+
+    camera_parameters["f"] = focal
+
+    cam = Camera(focal, [0, 0], 0.3528, camera_parameters)
+
+    # creating 6 images for calibration
+    img0deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\0deg.json'))
+    img30deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\30deg.json'))
+    img45deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\45deg.json'))
+    img60deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\60deg.json'))
+    img90deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\90deg.json'))
+    img225deg = SingleImage(cam, np.array([cols, rows]), Reader.ReadSampleFile(r'raw data\225deg.json'))
+
+    ground_cp = np.array(
+        [[0, 0, 0], [0, 3, 0], [0, 6, 0], [0, 9, 0], [0, -3, 0], [0, -6, 0], [0, -9, 0], [3, 0, 0], [6, 0, 0],
+         [9, 0, 0], [12, 0, 0], [-3, 0, 0], [-6, 0, 0], [-9, 0, 0], [-12, 0, 0]])
+
+    img0deg.ComputeApproximateVals(ground_cp)
+    img30deg.ComputeApproximateVals(ground_cp)
+    img45deg.ComputeApproximateVals(ground_cp)
+    img60deg.ComputeApproximateVals(ground_cp)
+    img90deg.ComputeApproximateVals(ground_cp)
+    img225deg.ComputeApproximateVals(ground_cp)
+
+    lb0deg = img0deg.lb()
+    l0_0deg = img0deg.ComputeObservationVector(ground_cp)
+    lb30deg = img30deg.lb()
+    l0_30deg = img30deg.ComputeObservationVector(ground_cp)
+    lb45deg = img45deg.lb()
+    l0_45deg = img45deg.ComputeObservationVector(ground_cp)
+    lb60deg = img60deg.lb()
+    l0_60deg = img60deg.ComputeObservationVector(ground_cp)
+    lb90deg = img90deg.lb()
+    l0_90deg = img90deg.ComputeObservationVector(ground_cp)
+    lb225deg = img225deg.lb()
+    l0_225deg = img225deg.ComputeObservationVector(ground_cp)
+
+    lb = np.vstack((lb0deg, lb30deg, lb45deg, lb60deg, lb90deg, lb225deg))
+    l0 = np.vstack((l0_0deg, l0_30deg, l0_45deg, l0_60deg, l0_90deg, l0_225deg))
+
+    l = lb - l0
+
+    a_0deg = img0deg.ComputeDesignMatrix(ground_cp)
+    a_30deg = img30deg.ComputeDesignMatrix(ground_cp)
+    a_45deg = img45deg.ComputeDesignMatrix(ground_cp)
+    a_60deg = img60deg.ComputeDesignMatrix(ground_cp)
+    a_90deg = img90deg.ComputeDesignMatrix(ground_cp)
+    a_225deg = img225deg.ComputeDesignMatrix(ground_cp)
+
+    A = np.vstack((a_0deg, a_30deg, a_45deg, a_60deg, a_90deg, a_225deg))
+
+    N = np.dot(A.T, A)
+    u = np.dot(A.T, l)
+    deltaX = np.dot(la.inv(N), u)
+
 
     # tkinter load data \
     # filename = tk.filedialog.askopenfilename()
