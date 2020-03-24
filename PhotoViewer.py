@@ -119,7 +119,36 @@ def drawOrientation(R, x0, scale, ax) :
     ax.plot(xs, ys, zs, c='b')
 
 
-if __name__ == '__main__' :
+def drawCube(corners):
+    """
+    drawing a 3d cube from 8 corners
+    :param corners:
+    :return: plt figure of the cube
+    """
+    fig_orthographic = plt.figure()
+    ax = fig_orthographic.add_subplot(111, projection='3d')
+
+    side1 = np.vstack((corners[0, :], corners[3, :]))
+    side2 = np.vstack((corners[4, :], corners[7, :]))
+    side3 = np.vstack((corners[0, :], corners[4, :]))
+    side4 = np.vstack((corners[1, :], corners[5, :]))
+    side5 = np.vstack((corners[2, :], corners[6, :]))
+    side6 = np.vstack((corners[3, :], corners[7, :]))
+
+    ax.scatter(corners[:, 0], corners[:, 1], corners[:, 2], c='r')
+    ax.plot(corners[0:4, 0], corners[0:4, 1], corners[0:4, 2], c='r')
+    ax.plot(corners[4:8, 0], corners[4:8, 1], corners[4:8, 2], c='r')
+    ax.plot(side1[:, 0], side1[:, 1], side1[:, 2])
+    ax.plot(side2[:, 0], side2[:, 1], side2[:, 2])
+    ax.plot(side3[:, 0], side3[:, 1], side3[:, 2])
+    ax.plot(side4[:, 0], side4[:, 1], side4[:, 2])
+    ax.plot(side5[:, 0], side5[:, 1], side5[:, 2])
+    ax.plot(side6[:, 0], side6[:, 1], side6[:, 2])
+
+    plt.show()
+
+
+if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
