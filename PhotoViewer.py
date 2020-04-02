@@ -135,9 +135,9 @@ def drawCube(corners):
     side5 = np.vstack((corners[2, :], corners[6, :]))
     side6 = np.vstack((corners[3, :], corners[7, :]))
 
-    ax.scatter(corners[:, 0], corners[:, 1], corners[:, 2], c='r')
-    ax.plot(corners[0:4, 0], corners[0:4, 1], corners[0:4, 2], c='r')
-    ax.plot(corners[4:8, 0], corners[4:8, 1], corners[4:8, 2], c='r')
+    ax.scatter(corners[:, 0], corners[:, 1], corners[:, 2])
+    ax.plot(corners[0:4, 0], corners[0:4, 1], corners[0:4, 2])
+    ax.plot(corners[4:8, 0], corners[4:8, 1], corners[4:8, 2])
     ax.plot(side1[:, 0], side1[:, 1], side1[:, 2])
     ax.plot(side2[:, 0], side2[:, 1], side2[:, 2])
     ax.plot(side3[:, 0], side3[:, 1], side3[:, 2])
