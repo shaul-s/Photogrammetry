@@ -1,6 +1,7 @@
 import numpy as np
 from Camera import Camera
-from MatrixMethods import Compute3DRotationMatrix, Compute3DRotationDerivativeMatrix
+from MatrixMethods import Compute3DRotationMatrix, Compute3DRotationDerivativeMatrix, Compute3DRotationMatrix_RzRyRz, \
+    Compute3DRotationDerivativeMatrix_RzRyRz
 from scipy import linalg as la
 
 
@@ -82,6 +83,21 @@ class SingleImage(object):
         """
         self.__exteriorOrientationParameters = parametersArray
 
+    @innerOrientationParameters.setter
+    def innerOrientationParameters(self, parametersArray):
+        r"""
+
+        :param parametersArray: the parameters to update the ``self.__innerOrientationParameters``
+
+        **Usage example**
+
+        .. code-block:: py
+
+            self.innerOrientationParameters = parametersArray
+
+        """
+        self.__innerOrientationParameters = parametersArray
+
     @property
     def rotationMatrix(self):
         """
@@ -94,6 +110,22 @@ class SingleImage(object):
         """
 
         R = Compute3DRotationMatrix(self.exteriorOrientationParameters[3], self.exteriorOrientationParameters[4],
+                                    self.exteriorOrientationParameters[5])
+
+        return R
+
+    @property
+    def rotationMatrix_RzRyRz(self):
+        """
+        The rotation matrix of the image
+
+        Relates to the exterior orientation
+        :return: rotation matrix
+
+        :rtype: np.ndarray (3x3)
+        """
+
+        R = Compute3DRotationMatrix_RzRyRz(self.exteriorOrientationParameters[3], self.exteriorOrientationParameters[4],
                                     self.exteriorOrientationParameters[5])
 
         return R
@@ -154,15 +186,21 @@ class SingleImage(object):
         A = np.zeros((n, u))  # A matrix (n,u)
 
         j = 0
-        for i in range(len(imagePoints)) :
-            if i % 2 == 0 :
-                A[i,0] = 1; A[i,1] = 0; A[i,2] = fMarks[j]; A[i,3] = fMarks[j+1];
+        for i in range(len(imagePoints)):
+            if i % 2 == 0:
+                A[i, 0] = 1;
+                A[i, 1] = 0;
+                A[i, 2] = fMarks[j];
+                A[i, 3] = fMarks[j + 1];
                 A[i, 4] = 0
                 A[i, 5] = 0
-            else :
-                A[i, 0] = 0; A[i, 1] = 1; A[i, 2] = 0; A[i, 3] = 0;
+            else:
+                A[i, 0] = 0;
+                A[i, 1] = 1;
+                A[i, 2] = 0;
+                A[i, 3] = 0;
                 A[i, 4] = fMarks[j];
-                A[i, 5] = fMarks[j+1]
+                A[i, 5] = fMarks[j + 1]
                 j += 2
 
         X = np.dot(la.inv(np.dot(np.transpose(A), A)), np.dot(np.transpose(A), imagePoints))
@@ -201,13 +239,15 @@ class SingleImage(object):
         b2 = self.innerOrientationParameters[5]
 
         # computing algebric params
-        tx = a0; ty = b0
-        theta = np.arctan(b1/b2)
-        gamma = np.arctan((a1*np.sin(theta)+a2*np.cos(theta))/(b1*np.sin(theta)+b2*np.cos(theta)))
-        sx = a1*np.cos(theta)-a2*np.sin(theta)
-        sy = (a1*np.sin(theta)+a2*np.cos(theta))/np.sin(gamma)
+        tx = a0;
+        ty = b0
+        theta = np.arctan(b1 / b2)
+        gamma = np.arctan((a1 * np.sin(theta) + a2 * np.cos(theta)) / (b1 * np.sin(theta) + b2 * np.cos(theta)))
+        sx = a1 * np.cos(theta) - a2 * np.sin(theta)
+        sy = (a1 * np.sin(theta) + a2 * np.cos(theta)) / np.sin(gamma)
 
-        return {"translationX": tx, "translationY": ty, "rotationAngle": np.rad2deg(theta), "scaleFactorX": sx, "scaleFactorY": sy, "shearAngle": np.rad2deg(gamma)}
+        return {"translationX": tx, "translationY": ty, "rotationAngle": np.rad2deg(theta), "scaleFactorX": sx,
+                "scaleFactorY": sy, "shearAngle": np.rad2deg(gamma)}
 
     def ComputeInverseInnerOrientation(self):
         """
@@ -233,10 +273,10 @@ class SingleImage(object):
         b1 = self.innerOrientationParameters[4]
         b2 = self.innerOrientationParameters[5]
 
-        mat = np.array([[a1[0], a2[0]],[b1[0],b2[0]]])
+        mat = np.array([[a1[0], a2[0]], [b1[0], b2[0]]])
         mat = la.inv(mat)
 
-        return np.array([a0[0],b0[0],mat[0,0],mat[0,1],mat[1,0],mat[1,1]]).T
+        return np.array([a0[0], b0[0], mat[0, 0], mat[0, 1], mat[1, 0], mat[1, 1]]).T
 
     def CameraToImage(self, cameraPoints):
         """
@@ -285,13 +325,18 @@ class SingleImage(object):
         b1 = self.innerOrientationParameters[4]
         b2 = self.innerOrientationParameters[5]
 
-        R = np.array([[a1[0], a2[0]], [b1[0], b2[0]]])
-        T = np.array([[a0[0]], [b0[0]]])
+        if np.isscalar(a0):
+
+            R = np.array([[a1, a2], [b1, b2]])
+            T = np.array([[a0], [b0]])
+
+        else:
+            R = np.array([[a1[0], a2[0]], [b1[0], b2[0]]])
+            T = np.array([[a0[0]], [b0[0]]])
 
         cameraPoints = cameraPoints.T
         #  computing the transformation to the image system
         return (T + np.dot(R, cameraPoints)).T
-
 
     def ImageToCamera(self, imagePoints):
         """
@@ -343,8 +388,6 @@ class SingleImage(object):
         R = np.array([[inverse_pars[2], inverse_pars[3]], [inverse_pars[4], inverse_pars[5]]])
 
         return (np.dot(R, imagePoints - T)).T
-
-
 
     def ComputeExteriorOrientation(self, imagePoints, groundPoints, epsilon):
         """
@@ -400,10 +443,11 @@ class SingleImage(object):
 
 
         """
-        cameraPoints = self.ImageToCamera(imagePoints)
+        # cameraPoints = self.ImageToCamera(imagePoints)
+        cameraPoints = imagePoints
         self.__ComputeApproximateVals(cameraPoints, groundPoints)
         l0 = self.__ComputeObservationVector(groundPoints.T)
-        l0 = np.reshape(l0, (-1,1))
+        l0 = np.reshape(l0, (-1, 1))
         l = cameraPoints.reshape(np.size(cameraPoints), 1) - l0
         A = self.__ComputeDesignMatrix(groundPoints.T)
 
@@ -428,20 +472,105 @@ class SingleImage(object):
         # compute residuals
         l_a = np.reshape(self.__ComputeObservationVector(groundPoints.T), (-1, 1))
         v = l_a - cameraPoints.reshape(np.size(cameraPoints), 1)
-        if (np.size(A,0)-np.size(deltaX)) != 0:
-            sig = np.dot(v.T, v)/(np.size(A,0)-np.size(deltaX))
-            sigmaX = sig[0]*la.inv(N)
+        if (np.size(A, 0) - np.size(deltaX)) != 0:
+            sig = np.dot(v.T, v) / (np.size(A, 0) - np.size(deltaX))
+            sigmaX = sig[0] * la.inv(N)
         else:
             sigmaX = None
 
         return [self.exteriorOrientationParameters, sigmaX, v]
 
+    def ComputeExteriorOrientation_RzRyRz(self, imagePoints, groundPoints, epsilon):
+        """
+        Compute exterior orientation parameters.
+
+        This function can be used in conjecture with ``self.__ComputeDesignMatrix(groundPoints)`` and ``self__ComputeObservationVector(imagePoints)``
+
+        :param imagePoints: image points
+        :param groundPoints: corresponding ground points
+
+            .. note::
+
+                Angles are given in radians
+
+        :param epsilon: threshold for convergence criteria
+
+        :type imagePoints: np.array nx2
+        :type groundPoints: np.array nx3
+        :type epsilon: float
+
+        :return: Exterior orientation parameters: (X0, Y0, Z0, omega, phi, kappa), their accuracies, and residuals vector. *The orientation parameters can be either dictionary or array -- to your decision*
+
+        :rtype: dict
 
 
+        .. warning::
+
+           - This function is empty, need implementation
+           - Decide how the parameters are held, don't forget to update documentation
+
+        .. note::
+
+            - Don't forget to update the ``self.exteriorOrientationParameters`` member (every iteration and at the end).
+            - Don't forget to call ``cameraPoints = self.ImageToCamera(imagePoints)`` to correct the coordinates that are sent to ``self.__ComputeApproximateVals(cameraPoints, groundPoints)``
+            - return values can be a tuple of dictionaries and arrays.
+
+        **Usage Example**
+
+        .. code-block:: py
+
+            img = SingleImage(camera = cam)
+            grdPnts = np.array([[201058.062, 743515.351, 243.987],
+                        [201113.400, 743566.374, 252.489],
+                        [201112.276, 743599.838, 247.401],
+                        [201166.862, 743608.707, 248.259],
+                        [201196.752, 743575.451, 247.377]])
+            imgPnts3 = np.array([[-98.574, 10.892],
+                         [-99.563, -5.458],
+                         [-93.286, -10.081],
+                         [-99.904, -20.212],
+                         [-109.488, -20.183]])
+            img.ComputeExteriorOrientation(imgPnts3, grdPnts, 0.3)
 
 
+        """
+        # cameraPoints = self.ImageToCamera(imagePoints)
+        cameraPoints = imagePoints
+        self.exteriorOrientationParameters[0:3] = np.dot(self.rotationMatrix_RzRyRz, self.exteriorOrientationParameters[0:3])
+        self.exteriorOrientationParameters = np.add(self.exteriorOrientationParameters, np.random.normal(0, 0.01, self.exteriorOrientationParameters.shape))
+        l0 = self.__ComputeObservationVector_RzRyRz(groundPoints.T)
+        l0 = np.reshape(l0, (-1, 1))
+        l = cameraPoints.reshape(np.size(cameraPoints), 1) - l0
+        A = self.__ComputeDesignMatrix_RzRyRz(groundPoints.T)
 
+        N = np.dot(A.T, A)
+        u = np.dot(A.T, l)
+        deltaX = np.dot(la.inv(N), u)
 
+        # update orientation pars
+        self.__exteriorOrientationParameters = np.add(self.__exteriorOrientationParameters, np.reshape(deltaX, 6))
+
+        while la.norm(deltaX) > epsilon:
+            l0 = self.__ComputeObservationVector_RzRyRz(groundPoints.T)
+            l0 = np.reshape(l0, (-1, 1))
+            l = cameraPoints.reshape(np.size(cameraPoints), 1) - l0
+            A = self.__ComputeDesignMatrix_RzRyRz(groundPoints.T)
+            N = np.dot(A.T, A)
+            u = np.dot(A.T, l)
+            deltaX = np.dot(la.inv(N), u)
+            # update orientation pars
+            self.__exteriorOrientationParameters = np.add(self.__exteriorOrientationParameters, np.reshape(deltaX, 6))
+
+        # compute residuals
+        l_a = np.reshape(self.__ComputeObservationVector_RzRyRz(groundPoints.T), (-1, 1))
+        v = l_a - cameraPoints.reshape(np.size(cameraPoints), 1)
+        if (np.size(A, 0) - np.size(deltaX)) != 0:
+            sig = np.dot(v.T, v) / (np.size(A, 0) - np.size(deltaX))
+            sigmaX = sig[0] * la.inv(N)
+        else:
+            sigmaX = None
+
+        return [self.exteriorOrientationParameters, sigmaX, v]
 
     def GroundToImage(self, groundPoints):
         """
@@ -478,7 +607,7 @@ class SingleImage(object):
 
         camPoints = []
 
-        for i in range(groundPoints.shape[0]) :
+        for i in range(groundPoints.shape[0]):
             x = xp - (f) * (((r11 * (groundPoints[i, 0] - X0) + r21 * (groundPoints[i, 1] - Y0) + r31 * (
                     groundPoints[i, 2] - Z0)) / (r13 * (groundPoints[i, 0] - X0) + r23 * (
                     groundPoints[i, 1] - Y0) + r33 * (groundPoints[i, 2] - Z0))))
@@ -488,7 +617,56 @@ class SingleImage(object):
 
             camPoints.append([x, y])
 
-        return self.CameraToImage(np.array(camPoints))
+        # return self.CameraToImage(np.array(camPoints))
+        return (np.array(camPoints))
+
+    def GroundToImage_RzRyRz(self, groundPoints):
+        """
+        Transforming ground points to image points
+
+        :param groundPoints: ground points [m]
+
+        :type groundPoints: np.array nx3
+
+        :return: corresponding Image points
+
+        :rtype: np.array nx2
+
+        """
+        X0 = float(self.exteriorOrientationParameters[0])
+        Y0 = float(self.exteriorOrientationParameters[1])
+        Z0 = float(self.exteriorOrientationParameters[2])
+
+        xp = float(self.camera.principalPoint[0])
+        yp = float(self.camera.principalPoint[1])
+
+        R = self.rotationMatrix_RzRyRz
+        r11 = float(R[0, 0])
+        r12 = float(R[0, 1])
+        r13 = float(R[0, 2])
+        r21 = float(R[1, 0])
+        r22 = float(R[1, 1])
+        r23 = float(R[1, 2])
+        r31 = float(R[2, 0])
+        r32 = float(R[2, 1])
+        r33 = float(R[2, 2])
+
+        f = self.camera.focalLength
+
+        camPoints = []
+
+        for i in range(groundPoints.shape[0]):
+            x = xp - (f) * (((r11 * (groundPoints[i, 0] - X0) + r21 * (groundPoints[i, 1] - Y0) + r31 * (
+                    groundPoints[i, 2] - Z0)) / (r13 * (groundPoints[i, 0] - X0) + r23 * (
+                    groundPoints[i, 1] - Y0) + r33 * (groundPoints[i, 2] - Z0))))
+            y = yp - (f) * (((r12 * (groundPoints[i, 0] - X0) + r22 * (groundPoints[i, 1] - Y0) + r32 * (
+                    groundPoints[i, 2] - Z0)) / (r13 * (groundPoints[i, 0] - X0) + r23 * (
+                    groundPoints[i, 1] - Y0) + r33 * (groundPoints[i, 2] - Z0))))
+
+            camPoints.append([x, y])
+
+        # return self.CameraToImage(np.array(camPoints))
+        return (np.array(camPoints))
 
     def ImageToRay(self, imagePoints):
         """
@@ -566,21 +744,27 @@ class SingleImage(object):
         groundPoints = []
 
         for i in range(len(cameraPoints[1])):
-            camVec = np.insert(cameraPoints[:,i], np.size(cameraPoints), -f)
-            lam = (Z_values - Z0)/(np.dot(R[2,:], camVec))
+            camVec = np.insert(cameraPoints[:, i], np.size(cameraPoints), -f)
+            lam = (Z_values - Z0) / (np.dot(R[2, :], camVec))
 
-            X = X0 + lam*np.dot(R[0,:], camVec)
+            X = X0 + lam * np.dot(R[0, :], camVec)
             Y = Y0 + lam * np.dot(R[1, :], camVec)
 
             xy = [X, Y, Z_values]
             groundPoints.append(xy)
 
-
         groundPoints = np.array(groundPoints)
 
         return groundPoints
 
-
+    def castSize(self, scale):
+        """
+        calculates area of the footprint on the ground
+        focalLength and sensorsize in mm
+        :param z: diffrent hight from Z (for example at top of the square) (m)
+        :return: area in mm2 of FOV footprint
+        """
+        return self.camera.sensorSize * scale
 
 
     # ---------------------- Private methods ----------------------
@@ -613,9 +797,9 @@ class SingleImage(object):
 
         # Find approximate values
         cameraPoints = cameraPoints.reshape(np.size(cameraPoints), 1)
-        groundPointsXY = groundPoints[0:2,:].T
+        groundPointsXY = groundPoints[0:2, :].T
         groundPointsXY = groundPointsXY.reshape(np.size(groundPointsXY), 1)
-        groundPointsZ = groundPoints[2,:].T
+        groundPointsZ = groundPoints[2, :].T
 
         n = int(len(cameraPoints))  # number of observations
         u = 4  # 4 conform parameters
@@ -641,15 +825,81 @@ class SingleImage(object):
         #  now we can compute the rest of the params
         X0 = X[0]
         Y0 = X[1]
-        kappa = np.arctan2(-X[3],X[2])
-        lam = np.sqrt(X[2]**2+X[3]**2)
-        Z0 = np.average(groundPointsZ) + (lam)*self.camera.focalLength
+        kappa = np.arctan2(-X[3], X[2])
+        lam = np.sqrt(X[2] ** 2 + X[3] ** 2)
+        Z0 = np.average(groundPointsZ) + (lam) * self.camera.focalLength
 
-        adjustment_results = {"X0" : X0[0], "Y0" : Y0[0], "Z0" : Z0[0] ,"omega" : 0, "phi" : 0, "kappa" : np.rad2deg(kappa[0])}
+        adjustment_results = {"X0": X0[0], "Y0": Y0[0], "Z0": Z0[0], "omega": 0, "phi": 0,
+                              "kappa": np.rad2deg(kappa[0])}
 
-        self.__exteriorOrientationParameters = np.array([X0[0], Y0[0], Z0[0], 0, 0, kappa[0]]).T  # updating the exterior orientation params
+        self.__exteriorOrientationParameters = np.array(
+            [X0[0], Y0[0], Z0[0], 0, 0, kappa[0]]).T  # updating the exterior orientation params
         # self.__exteriorOrientationParameters = np.array([202225, 742447, 657.81, 0, 0, kappa[0]]).T
-        return adjustment_results
+        #return adjustment_results
+
+    def __ComputeApproximateVals_RzRyRz(self, cameraPoints, groundPoints):
+        """
+        Compute exterior orientation approximate values via 2-D conform transformation
+
+        :param cameraPoints: points in image space (x y)
+        :param groundPoints: corresponding points in world system (X, Y, Z)
+
+        :type cameraPoints: np.ndarray [nx2]
+        :type groundPoints: np.ndarray [nx3]
+
+        :return: Approximate values of exterior orientation parameters
+        :rtype: np.ndarray or dict
+
+        .. note::
+
+            - ImagePoints should be transformed to ideal camera using ``self.ImageToCamera(imagePoints)``. See code below
+            - The focal length is stored in ``self.camera.focalLength``
+            - Don't forget to update ``self.exteriorOrientationParameters`` in the order defined within the property
+            - return values can be a tuple of dictionaries and arrays.
+        """
+
+        # Find approximate values
+        cameraPoints = cameraPoints.reshape(np.size(cameraPoints), 1)
+        groundPointsXY = groundPoints[0:2, :].T
+        groundPointsXY = groundPointsXY.reshape(np.size(groundPointsXY), 1)
+        groundPointsZ = groundPoints[2, :].T
+
+        n = int(len(cameraPoints))  # number of observations
+        u = 4  # 4 conform parameters
+
+        A = np.zeros((n, u))  # A matrix (n,u)
+
+        j = 0
+        for i in range(len(cameraPoints)):
+            if i % 2 == 0:
+                A[i, 0] = 1
+                A[i, 1] = 0
+                A[i, 2] = cameraPoints[j]
+                A[i, 3] = cameraPoints[j + 1]
+            else:
+                A[i, 0] = 0
+                A[i, 1] = 1
+                A[i, 2] = cameraPoints[j + 1]
+                A[i, 3] = -cameraPoints[j]
+                j += 2
+
+        X = np.dot(la.inv(np.dot(np.transpose(A), A)), np.dot(np.transpose(A), groundPointsXY))
+
+        #  now we can compute the rest of the params
+        X0 = X[0]
+        Y0 = X[1]
+        kappa = np.arctan2(-X[3], X[2])
+        lam = np.sqrt(X[2] ** 2 + X[3] ** 2)
+        Z0 = np.average(groundPointsZ) + (lam) * self.camera.focalLength
+
+        adjustment_results = {"X0": X0[0], "Y0": Y0[0], "Z0": Z0[0], "omega": 0, "phi": 0,
+                              "kappa": np.rad2deg(kappa[0])}
+
+        self.__exteriorOrientationParameters = np.array(
+            [X0[0], Y0[0], Z0[0], 0.2, 0.2, kappa[0]]).T  # updating the exterior orientation params
+        # self.__exteriorOrientationParameters = np.array([202225, 742447, 657.81, 0, 0, kappa[0]]).T
+        #return adjustment_results
+
 
     def __ComputeObservationVector(self, groundPoints):
         """
@@ -668,11 +918,42 @@ class SingleImage(object):
         n = groundPoints.shape[0]  # number of points
 
         # Coordinates subtraction
-        dX = groundPoints[:,0] - self.exteriorOrientationParameters[0]
-        dY = groundPoints[:,1] - self.exteriorOrientationParameters[1]
-        dZ = groundPoints[:,2] - self.exteriorOrientationParameters[2]
+        dX = groundPoints[:, 0] - self.exteriorOrientationParameters[0]
+        dY = groundPoints[:, 1] - self.exteriorOrientationParameters[1]
+        dZ = groundPoints[:, 2] - self.exteriorOrientationParameters[2]
         dXYZ = np.vstack([dX, dY, dZ])
         rotated_XYZ = np.dot(self.rotationMatrix.T, dXYZ).T
+
+        l0 = np.empty(n * 2)
+
+        # Computation of the observation vector based on approximate exterior orientation parameters:
+        l0[::2] = -self.camera.focalLength * rotated_XYZ[:, 0] / rotated_XYZ[:, 2]
+        l0[1::2] = -self.camera.focalLength * rotated_XYZ[:, 1] / rotated_XYZ[:, 2]
+
+        return l0
+
+    def __ComputeObservationVector_RzRyRz(self, groundPoints):
+        """
+        Compute observation vector for solving the exterior orientation parameters of a single image
+        based on their approximate values
+
+        :param groundPoints: Ground coordinates of the control points
+
+        :type groundPoints: np.array nx3
+
+        :return: Vector l0
+
+        :rtype: np.array nx1
+        """
+
+        n = groundPoints.shape[0]  # number of points
+
+        # Coordinates subtraction
+        dX = groundPoints[:, 0] - self.exteriorOrientationParameters[0]
+        dY = groundPoints[:, 1] - self.exteriorOrientationParameters[1]
+        dZ = groundPoints[:, 2] - self.exteriorOrientationParameters[2]
+        dXYZ = np.vstack([dX, dY, dZ])
+        rotated_XYZ = np.dot(self.rotationMatrix_RzRyRz.T, dXYZ).T
 
         l0 = np.empty(n * 2)
 
@@ -770,6 +1051,94 @@ class SingleImage(object):
 
         return a
 
+    def __ComputeDesignMatrix_RzRyRz(self, groundPoints):
+        """
+            Compute the derivatives of the collinear law (design matrix)
+
+            :param groundPoints: Ground coordinates of the control points
+
+            :type groundPoints: np.array nx3
+
+            :return: The design matrix
+
+            :rtype: np.array nx6
+
+        """
+        # initialization for readability
+        azimuth = self.exteriorOrientationParameters[3]
+        phi = self.exteriorOrientationParameters[4]
+        kappa = self.exteriorOrientationParameters[5]
+
+        # Coordinates subtraction
+        dX = groundPoints[:, 0] - self.exteriorOrientationParameters[0]
+        dY = groundPoints[:, 1] - self.exteriorOrientationParameters[1]
+        dZ = groundPoints[:, 2] - self.exteriorOrientationParameters[2]
+        dXYZ = np.vstack([dX, dY, dZ])
+
+        rotationMatrixT = self.rotationMatrix_RzRyRz.T
+        rotatedG = rotationMatrixT.dot(dXYZ)
+        rT1g = rotatedG[0, :]
+        rT2g = rotatedG[1, :]
+        rT3g = rotatedG[2, :]
+
+        focalBySqauredRT3g = self.camera.focalLength / rT3g ** 2
+
+        dxdg = rotationMatrixT[0, :][None, :] * rT3g[:, None] - rT1g[:, None] * rotationMatrixT[2, :][None, :]
+        dydg = rotationMatrixT[1, :][None, :] * rT3g[:, None] - rT2g[:, None] * rotationMatrixT[2, :][None, :]
+
+        dgdX0 = np.array([-1, 0, 0], 'f')
+        dgdY0 = np.array([0, -1, 0], 'f')
+        dgdZ0 = np.array([0, 0, -1], 'f')
+
+        # Derivatives with respect to X0
+        dxdX0 = -focalBySqauredRT3g * np.dot(dxdg, dgdX0)
+        dydX0 = -focalBySqauredRT3g * np.dot(dydg, dgdX0)
+
+        # Derivatives with respect to Y0
+        dxdY0 = -focalBySqauredRT3g * np.dot(dxdg, dgdY0)
+        dydY0 = -focalBySqauredRT3g * np.dot(dydg, dgdY0)
+
+        # Derivatives with respect to Z0
+        dxdZ0 = -focalBySqauredRT3g * np.dot(dxdg, dgdZ0)
+        dydZ0 = -focalBySqauredRT3g * np.dot(dydg, dgdZ0)
+
+        dRTdOmega = Compute3DRotationDerivativeMatrix_RzRyRz(azimuth, phi, kappa, 'azimuth').T
+        dRTdPhi = Compute3DRotationDerivativeMatrix_RzRyRz(azimuth, phi, kappa, 'phi').T
+        dRTdKappa = Compute3DRotationDerivativeMatrix_RzRyRz(azimuth, phi, kappa, 'kappa').T
+
+        gRT3g = dXYZ * rT3g
+
+        # Derivatives with respect to Omega
+        dxdOmega = -focalBySqauredRT3g * (dRTdOmega[0, :][None, :].dot(gRT3g) -
+                                          rT1g * (dRTdOmega[2, :][None, :].dot(dXYZ)))[0]
+
+        dydOmega = -focalBySqauredRT3g * (dRTdOmega[1, :][None, :].dot(gRT3g) -
+                                          rT2g * (dRTdOmega[2, :][None, :].dot(dXYZ)))[0]
+
+        # Derivatives with respect to Phi
+        dxdPhi = -focalBySqauredRT3g * (dRTdPhi[0, :][None, :].dot(gRT3g) -
+                                        rT1g * (dRTdPhi[2, :][None, :].dot(dXYZ)))[0]
+
+        dydPhi = -focalBySqauredRT3g * (dRTdPhi[1, :][None, :].dot(gRT3g) -
+                                        rT2g * (dRTdPhi[2, :][None, :].dot(dXYZ)))[0]
+
+        # Derivatives with respect to Kappa
+        dxdKappa = -focalBySqauredRT3g * (dRTdKappa[0, :][None, :].dot(gRT3g) -
+                                          rT1g * (dRTdKappa[2, :][None, :].dot(dXYZ)))[0]
+
+        dydKappa = -focalBySqauredRT3g * (dRTdKappa[1, :][None, :].dot(gRT3g) -
+                                          rT2g * (dRTdKappa[2, :][None, :].dot(dXYZ)))[0]
+
+        # all derivatives of x and y
+        dd = np.array([np.vstack([dxdX0, dxdY0, dxdZ0, dxdOmega, dxdPhi, dxdKappa]).T,
+                       np.vstack([dydX0, dydY0, dydZ0, dydOmega, dydPhi, dydKappa]).T])
+
+        a = np.zeros((2 * dd[0].shape[0], 6))
+        a[0::2] = dd[0]
+        a[1::2] = dd[1]
+
+        return a
+
 
 if __name__ == '__main__':
     fMarks = np.array([[113.010, 113.011],
@@ -781,7 +1150,7 @@ if __name__ == '__main__':
                            [-7291.19, -7208.22],
                            [7375.09, 7293.59]])
     cam = Camera(153.42, np.array([0.015, -0.020]), None, None, fMarks)
-    img = SingleImage(camera = cam)
+    img = SingleImage(camera=cam)
     print(img.ComputeInnerOrientation(img_fmarks))
 
     print(img.ImageToCamera(img_fmarks))
