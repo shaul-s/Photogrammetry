@@ -1,47 +1,330 @@
 import numpy as np
+import random
+from scipy import linalg as la
+from scipy import matrix
 from matplotlib import pyplot as plt
+import pandas as pd
 import cv2
-import glob
 from Camera import *
 
+
+def computeDesignMatrix_Fundamental(pts1, pts2):
+    """
+    return design matrix for Fundamental matrix computation given a set of homologic points
+    :param pts1:
+    :param pts2:
+    :return: design matrix A for extracting the fundamental matrix
+    """
+    A = np.zeros((len(pts1), 9))
+    A[:, 0] = pts1[:, 0] * pts2[:, 0]
+    A[:, 1] = pts1[:, 1] * pts2[:, 0]
+    A[:, 2] = pts2[:, 0]
+    A[:, 3] = pts1[:, 0] * pts2[:, 1]
+    A[:, 4] = pts1[:, 1] * pts2[:, 1]
+    A[:, 5] = pts2[:, 1]
+    A[:, 6] = pts1[:, 0]
+    A[:, 7] = pts1[:, 1]
+    A[:, -1] = np.ones(A[:, -1].shape)
+    return A
+
+
+def normalizePoints(img_shape, pts1, pts2):
+    """
+    return an array of the normalized points between -1, 1 given img and homologic points
+    both images are presumed to be same size
+    :param img:
+    :param pts1:
+    :param pts2:
+    :return: the nomalizing matrix and normalized points
+    """
+    xmax = img_shape[0]
+    ymax = img_shape[1]
+    xm = 0.5 * (0 + xmax)
+    ym = 0.5 * (0 + ymax)
+    dx = xmax
+    dy = ymax
+    S = np.array([[2 / dx, 0, -2 * (xm / dx)], [0, 2 / dy, -2 * (ym / dy)], [0, 0, 1]])
+    pts1_normalized = []
+    pts2_normalized = []
+    for i in range(len(pts1)):
+        pts1_normalized.append(np.dot(S, pts1[i]))
+        pts2_normalized.append(np.dot(S, pts2[i]))
+
+    pts1_normalized = np.vstack(pts1_normalized)
+    pts2_normalized = np.vstack(pts2_normalized)
+
+    return S, pts1_normalized, pts2_normalized
+
+
+def findHomologicPoints(img1, img2, draw_images=0):
+    """
+    use SIFT & opencv to locate points from img1 in img2
+    :param img1: query image
+    :param img2: train image
+    :param draw_images: flag for drawing the homologic points found
+    :return: pts1 & pts2
+    """
+    # find homologic points
+    MIN_MATCH_COUNT = 10
+
+    # Initiate SIFT detector
+    sift = cv2.xfeatures2d.SIFT_create()
+    # find the keypoints and descriptors with SIFT
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
+
+    # FLANN parameters
+    FLANN_INDEX_KDTREE = 0
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)  # or pass empty dictionary
+
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+    matches = flann.knnMatch(des1, des2, k=2)
+
+    # Need to draw only good matches, so create a mask
+    matchesMask = [[0, 0] for i in range(len(matches))]
+
+    good = []
+    pts1 = []
+    pts2 = []
+    # ratio test as per Lowe's paper
+    for i, (m, n) in enumerate(matches):
+        if m.distance < 0.5 * n.distance:
+            matchesMask[i] = [1, 0]
+            good.append(m)
+            pts2.append(kp2[m.trainIdx].pt)
+            pts1.append(kp1[m.queryIdx].pt)
+
+    if len(good) > MIN_MATCH_COUNT and draw_images:
+        draw_params = dict(matchColor=(0, 255, 0),
+                           singlePointColor=(255, 0, 0),
+                           matchesMask=matchesMask,
+                           flags=0)
+
+        img3 = cv2.drawMatchesKnn(img1, kp1, img2, kp2, matches, None, **draw_params)
+
+        plt.imshow(img3, ), plt.show()
+
+    return np.vstack(pts1), np.vstack(pts2)
+
+
+def ransacFundamental(img1, pts1, pts2, tolerance=0.01, normalize=1):
+    """
+
+    :param img1:
+    :param pts1:
+    :param pts2:
+    :param tolerance:
+    :param normalize:
+    :return:
+    """
+
+    def check_minCount(F, minCount, pts1, pts2):
+        counter = 0
+        for i in range(len(pts1)):
+            if np.dot(np.dot(pts2[i].T, F), pts1[i]) <= tolerance:
+                counter += 1
+        print(counter, '/', len(pts1))
+        if counter >= minCount:
+            return False
+        return True
+
+    # setting desired count for matching points, in our case 85%
+    n = len(pts1)
+    good_pts1 = []
+    good_pts2 = []
+    MIN_MATCH_COUNT = np.int(0.85 * n)
+    # initial value for the fundamental matrix
+    F = np.ones((3, 3))
+    while check_minCount(F, MIN_MATCH_COUNT, pts1, pts2):
+        # select random 8 points - minimum for fundamental matrix extraction
+        rand8_pts1 = np.vstack((pts1[random.randrange(n)], pts1[random.randrange(n)], pts1[random.randrange(n)],
+                                pts1[random.randrange(n)], pts1[random.randrange(n)], pts1[random.randrange(n)],
+                                pts1[random.randrange(n)], pts1[random.randrange(n)]))
+        rand8_pts2 = np.vstack((pts2[random.randrange(n)], pts2[random.randrange(n)], pts2[random.randrange(n)],
+                                pts2[random.randrange(n)], pts2[random.randrange(n)], pts2[random.randrange(n)],
+                                pts2[random.randrange(n)], pts2[random.randrange(n)]))
+
+        # normalizing pts between -1,1
+        S, pts1_normalized, pts2_normalized = normalizePoints(img1.shape, rand8_pts1, rand8_pts2)
+        # creating design matrix
+        A = computeDesignMatrix_Fundamental(pts1_normalized, pts2_normalized)
+        # solving homogeneous equation
+        N = np.dot(A.T, A)
+        egi_vals, egi_vect = np.linalg.eig(N)
+        min_egi_val_index = np.argmin(egi_vals)
+        v = egi_vect[:, min_egi_val_index]
+        F = v.reshape((3, 3))
+        # svd decomposition for setting one singular value to zero
+        u, s, vh = la.svd(F)
+        s[-1] = 0
+        fixed_F = np.dot(np.dot(u, np.diag(s)), vh)
+        # converting F back to the normal coordinates and normalizing to norm=1
+        fixed_F = np.dot(np.dot(S.T, fixed_F), S)
+        F = fixed_F / la.norm(fixed_F)
+
+    # filtering out the bad points
+    for i in range(len(pts1)):
+        if np.dot(np.dot(pts2[i].T, F), pts1[i]) <= tolerance:
+            good_pts1.append(pts1[i])
+            good_pts2.append(pts2[i])
+    # using rest of points to adjust the new and improved fundamental matrix
+    # normalizing pts between -1,1
+    S, pts1_normalized, pts2_normalized = normalizePoints(img1.shape, good_pts1, good_pts2)
+    # creating design matrix
+    A = computeDesignMatrix_Fundamental(pts1_normalized, pts2_normalized)
+    # solving homogeneous equation
+    N = np.dot(A.T, A)
+    egi_vals, egi_vect = np.linalg.eig(N)
+    min_egi_val_index = np.argmin(egi_vals)
+    v = egi_vect[:, min_egi_val_index]
+    F = v.reshape((3, 3))
+    # svd decomposition for setting one singular value to zero
+    u, s, vh = la.svd(F)
+    s[-1] = 0
+    fixed_F = np.dot(np.dot(u, np.diag(s)), vh)
+    # converting F back to the normal coordinates and normalizing to norm=1
+    fixed_F = np.dot(np.dot(S.T, fixed_F), S)
+    F = fixed_F / la.norm(fixed_F)
+
+    return F, np.vstack(good_pts1), np.vstack(good_pts2)
+
+
+# METHOD FROM OPENCV
+def drawlines(img1, img2, lines, pts1, pts2):
+    ''' img1 - image on which we draw the epilines for the points in img2
+        lines - corresponding epilines '''
+    r, c = img1.shape
+    img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+    img2 = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+    for r, pt1, pt2 in zip(lines, pts1, pts2):
+        color = tuple(np.random.randint(0, 255, 3).tolist())
+        x0, y0 = map(int, [0, -r[2] / r[1]])
+        x1, y1 = map(int, [c, -(r[2] + r[0] * c) / r[1]])
+        img1 = cv2.line(img1, (x0, y0), (x1, y1), color, 1)
+        img1 = cv2.circle(img1, tuple(pt1.astype(int)), 5, color, -1)
+        img2 = cv2.circle(img2, tuple(pt2.astype(int)), 5, color, -1)
+    return img1, img2
+
+
 if __name__ == '__main__':
-    # # termination criteria
-    # criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-    #
-    # # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    # objp = np.zeros((7 * 9, 3), np.float32)
-    # objp[:, :2] = np.mgrid[0:180:20, 0:140:20].T.reshape(-1, 2)
-    #
-    # # Arrays to store object points and image points from all the images.
-    # objpoints = []  # 3d point in real world space
-    # imgpoints = []  # 2d points in image plane.
-    #
-    # images = glob.glob('images/*.jpg')
-    #
-    # for fname in images:
-    #     img = cv2.imread(fname)
-    #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #
-    #     # Find the chess board corners
-    #     ret, corners = cv2.findChessboardCorners(gray, (9, 7), None)
-    #
-    #     # If found, add object points, image points (after refining them)
-    #     if ret == True:
-    #         objpoints.append(objp)
-    #
-    #         corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-    #         imgpoints.append(corners2)
-    #
-    #         # Draw and display the corners
-    #         img = cv2.drawChessboardCorners(img, (9, 7), corners2, ret)
-    #         # cv2.imshow('img', img)
-    #         # cv2.waitKey(1)
-    #         plt.imshow(img)
-    #         plt.show()
-    #     # cv2.destroyAllWindows()
-    #
-    # ret, K, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    # computing K camera calibration matrix using cv2
+    K, rvecs, tvecs = Camera.calibrateCamera_checkers()
+    # print(pd.DataFrame(K))
 
-    K, rvecs, tvecs = calibrateCamera_checkers()
+    # loading images
+    img1 = cv2.imread('images/20200622_140804.jpg', 0)  # queryImage 'box'
+    img2 = cv2.imread('images/20200622_140813.jpg', 0)  # trainImage 'box-in-scene'
 
-    print('hi')
+    # computing fundamental matrix
+    # locating homologic points
+    pts1, pts2 = findHomologicPoints(img1, img2)
+
+    ##### TRY TO USE OPENCV FOR GETTING FUNDAMENTAL MATRIX AND DRAW EPIPOLAR LINES
+    # opencv drawing
+    F1, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC)
+    F1 = F1 / la.norm(F1)
+
+    # We select only inlier points
+    pts1 = pts1[mask.ravel() == 1]
+    pts2 = pts2[mask.ravel() == 1]
+
+    # Find epilines corresponding to points in right image (second image) and
+    # drawing its lines on left image
+    # lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1, 1, 2), 2, F1)
+    # lines1 = lines1.reshape(-1, 3)
+    # img5, img6 = drawlines(img1, img2, lines1, pts1, pts2)
+    # # Find epilines corresponding to points in left image (first image) and
+    # # drawing its lines on right image
+    # lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1, 1, 2), 1, F1)
+    # lines2 = lines2.reshape(-1, 3)
+    # img3, img4 = drawlines(img2, img1, lines2, pts2, pts1)
+    # # plt.subplot(121),
+    # plt.scatter(pts1[:, 0], pts1[:, 1])
+    # plt.imshow(img5), plt.axis('off')
+    # # plt.subplot(122), plt.imshow(img3), plt.axis('off')
+    # plt.show()
+
+    ####
+
+    # converting points to homogeneous presentation
+    # f = np.mean(np.array([K[0, 0], K[1, 1]]))
+    pts1 = np.hstack((pts1, np.ones((pts1.shape[0], 1))))
+    pts2 = np.hstack((pts2, np.ones((pts2.shape[0], 1))))
+
+    # correcting points to ideal camera
+    # K[0, 0] = -K[0, 0]
+    # K[1, 1] = -K[1, 1]
+    xp = K[0, -1]
+    yp = K[1, -1]
+    ppa = np.array([xp, yp, 0])
+    for i in range(len(pts1)):
+        # pts1[i] = np.dot(la.inv(K), pts1[i])
+        # pts2[i] = np.dot(la.inv(K), pts2[i])
+        pts1[i] = pts1[i] - ppa
+        pts2[i] = pts2[i] - ppa
+
+    # ransac adjusting the fundamental matrix
+    F, good_pts1, good_pts2 = ransacFundamental(img1, pts1, pts2, tolerance=0.01)
+
+    # find epipole using null space
+    # left null space is the 1st image epipole point
+    epipole1 = la.null_space(matrix(F))
+    # translate to image space
+    epipole1 = (epipole1.T / epipole1.T[:, -1]) + ppa.T
+    plt.imshow(img1, cmap='gray')
+    plt.scatter(epipole1.T[0], epipole1.T[1], s=200, c='g')
+    plt.axis('off')
+    plt.show()
+
+    # computing epi-polar line for each homologic points and distance from it
+    epi_lines = []
+    distances = []
+    for i, p in enumerate(good_pts2):
+        epi_line = np.dot(p.T, F)
+        epi_lines.append(epi_line)
+        distances.append(np.abs(epi_line[0] * good_pts1[i, 0] + epi_line[1] * good_pts1[i, 1] + epi_line[-1]) / np.sqrt(
+            epi_line[0] ** 2 + epi_line[1] ** 2))
+    epi_lines = np.vstack(epi_lines)
+    distances = np.vstack(distances)
+    # filtering points above a certain distance from line
+    idx = np.where(distances < 1)[0]
+    good_pts1 = good_pts1[idx]
+    good_pts2 = good_pts2[idx]
+    good_epi_lines = epi_lines[idx]
+
+    # for drawing purposes going back to image system
+    good_pts1_image = []
+    good_pts2_image = []
+    for i in range(len(good_pts1)):
+        good_pts1_image.append(good_pts1[i] + ppa)
+        good_pts2_image.append(good_pts2[i] + ppa)
+
+    good_pts1_image = np.vstack(good_pts1_image)
+    good_pts2_image = np.vstack(good_pts2_image)
+
+    # low_right_x = 2268.
+    # upper_left_x = 0.
+    # xs = [upper_left_x, low_right_x] - ppa[0]
+    # #
+    # plt.imshow(img1, cmap='gray')
+    # plt.scatter(good_pts1[:, 0], good_pts1[:, 1], c='g')
+    # for line in good_epi_lines:
+    #     y1 = (-line[0] * upper_left_x - line[-1]) / line[1]
+    #     y2 = (-line[0] * low_right_x - line[-1]) / line[1]
+    #     ys = [y1, y2] - ppa[1]
+    #     # plt.scatter(xs, ys)
+    #     plt.plot(xs, ys)
+    # plt.show()
+
+    # plt.subplot(121)
+    # plt.axis('off')
+    # plt.imshow(img1, cmap='gray')
+    # plt.scatter(good_pts1_image[:, 0], good_pts1_image[:, 1])
+    # plt.subplot(122)
+    # plt.axis('off')
+    # plt.imshow(img2, cmap='gray')
+    # plt.scatter(good_pts2_image[:, 0], good_pts2_image[:, 1])
+    # plt.show()
+
+    print(pd.DataFrame(F))
