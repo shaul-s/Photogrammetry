@@ -17,8 +17,10 @@ class ImagePair(object):
         """
         self.__image1 = image1
         self.__image2 = image2
-        self.__relativeOrientationImage1 = np.array([0, 0, 0, 0, 0, 0])  # The relative orientation of the first image
-        self.__relativeOrientationImage2 = None  # The relative orientation of the second image
+        self.__relativeOrientationImage1 = np.array([0, 0, 0, 0, 0, 0]).astype(
+            float)  # The relative orientation of the first image
+        self.__relativeOrientationImage2 = np.array([0, 0, 0, 0, 0, 0]).astype(
+            float)  # The relative orientation of the second image
         self.__absoluteOrientation = None
         self.__isSolved = False  # Flag for the relative orientation
 
@@ -63,8 +65,20 @@ class ImagePair(object):
 
         :rtype: np.array 3x3
         """
-        return Compute3DRotationMatrix(self.__relativeOrientationImage1[3], self.__relativeOrientationImage1[4],
-                                       self.__relativeOrientationImage1[5])
+        # return Compute3DRotationMatrix(self.__relativeOrientationImage1[3], self.__relativeOrientationImage1[4],
+        #                                self.__relativeOrientationImage1[5])
+        return self.__image1.rotationMatrix
+
+    @RotationMatrix_Image1.setter
+    def RotationMatrix_Image1(self, R):
+        """
+        Rotation matrix of the first image
+
+        :return: rotation matrix
+
+        :rtype: np.array 3x3
+        """
+        self.__image1.rotationMatrix = R
 
     @property
     def RotationMatrix_Image2(self):
@@ -75,8 +89,20 @@ class ImagePair(object):
 
         :rtype: np.array 3x3
         """
-        return Compute3DRotationMatrix(self.__relativeOrientationImage2[3], self.__relativeOrientationImage2[4],
-                                       self.__relativeOrientationImage2[5])
+        # return Compute3DRotationMatrix(self.__relativeOrientationImage2[3], self.__relativeOrientationImage2[4],
+        #                                self.__relativeOrientationImage2[5])
+        return self.__image2.rotationMatrix
+
+    @RotationMatrix_Image2.setter
+    def RotationMatrix_Image2(self, R):
+        """
+        Rotation matrix of the first image
+
+        :return: rotation matrix
+
+        :rtype: np.array 3x3
+        """
+        self.__image2.rotationMatrix = R
 
     @property
     def PerspectiveCenter_Image1(self):
@@ -99,6 +125,17 @@ class ImagePair(object):
         :rtype: np.array (3, )
         """
         return self.__relativeOrientationImage2[0:3]
+
+    @PerspectiveCenter_Image2.setter
+    def PerspectiveCenter_Image2(self, b):
+        """
+        Perspective center of the second image
+
+        :return: perspective center
+
+        :rtype: np.array (3, )
+        """
+        self.__relativeOrientationImage2[0:3] = b
 
     def ImagesToGround(self, imagePoints1, imagePoints2, Method):
         """
@@ -385,8 +422,10 @@ class ImagePair(object):
             One of the images is a reference, orientation of this image must be set.
 
         """
-        cameraPoints1 = self.__image1.ImageToCamera(imagePoints1)
-        cameraPoints2 = self.__image2.ImageToCamera(imagePoints2)
+        # cameraPoints1 = self.__image1.ImageToCamera(imagePoints1)
+        # cameraPoints2 = self.__image2.ImageToCamera(imagePoints2)
+        cameraPoints1 = imagePoints1
+        cameraPoints2 = imagePoints2
 
         if Method == 'vector':
             return self.vectorIntersction(cameraPoints1, cameraPoints2)

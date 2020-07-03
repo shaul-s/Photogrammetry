@@ -3,9 +3,13 @@ import random
 from scipy import linalg as la
 from scipy import matrix
 from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 import cv2
 from Camera import *
+from ImagePair import *
+from SingleImage import *
+from PhotoViewer import *
 
 
 def computeDesignMatrix_Fundamental(pts1, pts2):
@@ -138,12 +142,16 @@ def ransacFundamental(img1, pts1, pts2, tolerance=0.01, normalize=1):
     F = np.ones((3, 3))
     while check_minCount(F, MIN_MATCH_COUNT, pts1, pts2):
         # select random 8 points - minimum for fundamental matrix extraction
-        rand8_pts1 = np.vstack((pts1[random.randrange(n)], pts1[random.randrange(n)], pts1[random.randrange(n)],
-                                pts1[random.randrange(n)], pts1[random.randrange(n)], pts1[random.randrange(n)],
-                                pts1[random.randrange(n)], pts1[random.randrange(n)]))
-        rand8_pts2 = np.vstack((pts2[random.randrange(n)], pts2[random.randrange(n)], pts2[random.randrange(n)],
-                                pts2[random.randrange(n)], pts2[random.randrange(n)], pts2[random.randrange(n)],
-                                pts2[random.randrange(n)], pts2[random.randrange(n)]))
+        random_idx = []
+        for i in range(8):
+            random_idx.append(random.randrange(n))
+
+        rand8_pts1 = np.vstack((pts1[random_idx[0]], pts1[random_idx[1]], pts1[random_idx[2]],
+                                pts1[random_idx[3]], pts1[random_idx[4]], pts1[random_idx[5]],
+                                pts1[random_idx[6]], pts1[random_idx[7]]))
+        rand8_pts2 = np.vstack((pts2[random_idx[0]], pts2[random_idx[1]], pts2[random_idx[2]],
+                                pts2[random_idx[3]], pts2[random_idx[4]], pts2[random_idx[5]],
+                                pts2[random_idx[6]], pts2[random_idx[7]]))
 
         # normalizing pts between -1,1
         S, pts1_normalized, pts2_normalized = normalizePoints(img1.shape, rand8_pts1, rand8_pts2)
@@ -239,10 +247,10 @@ if __name__ == '__main__':
     # lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1, 1, 2), 1, F1)
     # lines2 = lines2.reshape(-1, 3)
     # img3, img4 = drawlines(img2, img1, lines2, pts2, pts1)
-    # # plt.subplot(121),
-    # plt.scatter(pts1[:, 0], pts1[:, 1])
+    # plt.subplot(121),
+    # # plt.scatter(pts1[:, 0], pts1[:, 1])
     # plt.imshow(img5), plt.axis('off')
-    # # plt.subplot(122), plt.imshow(img3), plt.axis('off')
+    # plt.subplot(122), plt.imshow(img3), plt.axis('off')
     # plt.show()
 
     ####
@@ -253,8 +261,8 @@ if __name__ == '__main__':
     pts2 = np.hstack((pts2, np.ones((pts2.shape[0], 1))))
 
     # correcting points to ideal camera
-    # K[0, 0] = -K[0, 0]
-    # K[1, 1] = -K[1, 1]
+    K[0, 0] = -K[0, 0]
+    K[1, 1] = -K[1, 1]
     xp = K[0, -1]
     yp = K[1, -1]
     ppa = np.array([xp, yp, 0])
@@ -269,13 +277,14 @@ if __name__ == '__main__':
 
     # find epipole using null space
     # left null space is the 1st image epipole point
-    epipole1 = la.null_space(matrix(F))
+    epipole1 = la.null_space(matrix(F.T))
     # translate to image space
     epipole1 = (epipole1.T / epipole1.T[:, -1]) + ppa.T
-    plt.imshow(img1, cmap='gray')
-    plt.scatter(epipole1.T[0], epipole1.T[1], s=200, c='g')
-    plt.axis('off')
-    plt.show()
+    # show epipole on image
+    # plt.imshow(img2, cmap='gray')
+    # plt.scatter(epipole1.T[0], epipole1.T[1], s=200, c='g')
+    # plt.axis('off')
+    # plt.show()
 
     # computing epi-polar line for each homologic points and distance from it
     epi_lines = []
@@ -305,16 +314,18 @@ if __name__ == '__main__':
 
     # low_right_x = 2268.
     # upper_left_x = 0.
-    # xs = [upper_left_x, low_right_x] - ppa[0]
+    # xs = (upper_left_x, low_right_x) # - ppa[0]
     # #
-    # plt.imshow(img1, cmap='gray')
+    #
     # plt.scatter(good_pts1[:, 0], good_pts1[:, 1], c='g')
     # for line in good_epi_lines:
     #     y1 = (-line[0] * upper_left_x - line[-1]) / line[1]
     #     y2 = (-line[0] * low_right_x - line[-1]) / line[1]
-    #     ys = [y1, y2] - ppa[1]
+    #     ys = (y1, y2) #  - ppa[1]
     #     # plt.scatter(xs, ys)
-    #     plt.plot(xs, ys)
+    #     # plt.plot(xs, ys)
+    #     cv2.line(img1, (0, 2268), (int(y1), int(y2)), (0, 255, 0), thickness=2)
+    # plt.imshow(img1, cmap='gray')
     # plt.show()
 
     # plt.subplot(121)
@@ -326,5 +337,127 @@ if __name__ == '__main__':
     # plt.imshow(img2, cmap='gray')
     # plt.scatter(good_pts2_image[:, 0], good_pts2_image[:, 1])
     # plt.show()
+
+    # compute essential matrix using F
+    E = np.dot(np.dot(K.T, F), K)
+    u, s, vh = la.svd(E)
+    s = np.array([1, 1, 0])
+    E = np.dot(np.dot(u, np.diag(s)), vh)
+    E = E / la.norm(E)
+
+    # extracting mutual orientation parameters
+    W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    b1 = u[:, -1]
+    b2 = -u[:, -1]
+    R1 = np.dot(np.dot(u, W), vh.T)
+    R2 = np.dot(np.dot(u, W.T), vh.T)
+
+    # defining image pair
+    cam = Camera(-K[0, 0], [K[0, -1], K[1, -1]], None, None, None, 0.5)
+
+    image1 = SingleImage(cam)
+    image2 = SingleImage(cam)
+
+    image_pair = ImagePair(image1, image2)
+    image_pair.RotationMatrix_Image1 = np.eye(3)
+
+    fig_orthographic = plt.figure()
+    ax1 = fig_orthographic.add_subplot(221, projection='3d')
+    ax2 = fig_orthographic.add_subplot(222, projection='3d')
+    ax3 = fig_orthographic.add_subplot(223, projection='3d')
+    ax4 = fig_orthographic.add_subplot(224, projection='3d')
+
+    # try1
+    ax1.set_title('R1, b1')
+    image_pair.RotationMatrix_Image2 = R1
+    image_pair.PerspectiveCenter_Image2 = b1
+
+    model_points = image_pair.ImagesToModel(good_pts1[5:10, 0:2], good_pts2[5:10, 0:2], 'vector')
+
+    x1 = image_pair.PerspectiveCenter_Image1[:, None]
+    x2 = image_pair.PerspectiveCenter_Image2[:, None]
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image1, x1, -cam.focalLength / 10000, 1,
+                   ax1)
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image2, x2, -cam.focalLength / 10000, 1,
+                   ax1)
+    drawOrientation(image_pair.RotationMatrix_Image1, x1, 0.5, ax1)
+    drawOrientation(image_pair.RotationMatrix_Image2, x2, 0.5, ax1)
+    drawRays(model_points[0], x1, ax1, 'r')
+    drawRays(model_points[0], x2, ax1, 'g')
+
+    ax1.scatter(model_points[0][:, 0], model_points[0][:, 1], model_points[0][:, 2], marker='^')
+
+    # try2
+    ax2.set_title('R2, b2')
+    image_pair.RotationMatrix_Image2 = R2
+    image_pair.PerspectiveCenter_Image2 = b2
+
+    model_points = image_pair.ImagesToModel(good_pts1[0:5, 0:2], good_pts2[0:5, 0:2], 'vector')
+
+    x1 = image_pair.PerspectiveCenter_Image1[:, None]
+    x2 = image_pair.PerspectiveCenter_Image2[:, None]
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image1, x1, -cam.focalLength / 10000, 1,
+                   ax2)
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image2, x2, -cam.focalLength / 10000, 1,
+                   ax2)
+    drawOrientation(image_pair.RotationMatrix_Image1, x1, 0.5, ax2)
+    drawOrientation(image_pair.RotationMatrix_Image2, x2, 0.5, ax2)
+    drawRays(model_points[0], x1, ax2, 'r')
+    drawRays(model_points[0], x2, ax2, 'g')
+
+    ax2.scatter(model_points[0][:, 0], model_points[0][:, 1], model_points[0][:, 2], marker='^')
+
+    # try3
+    ax3.set_title('R1, b2')
+    image_pair.RotationMatrix_Image2 = R1
+    image_pair.PerspectiveCenter_Image2 = b2
+
+    model_points = image_pair.ImagesToModel(good_pts1[0:5, 0:2], good_pts2[0:5, 0:2], 'vector')
+
+    x1 = image_pair.PerspectiveCenter_Image1[:, None]
+    x2 = image_pair.PerspectiveCenter_Image2[:, None]
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image1, x1, -cam.focalLength / 10000, 1,
+                   ax3)
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image2, x2, -cam.focalLength / 10000, 1,
+                   ax3)
+    drawOrientation(image_pair.RotationMatrix_Image1, x1, 0.5, ax3)
+    drawOrientation(image_pair.RotationMatrix_Image2, x2, 0.5, ax3)
+    drawRays(model_points[0], x1, ax3, 'r')
+    drawRays(model_points[0], x2, ax3, 'g')
+
+    ax3.scatter(model_points[0][:, 0], model_points[0][:, 1], model_points[0][:, 2], marker='^')
+
+    # try4
+    ax4.set_title('R2, b1')
+    image_pair.RotationMatrix_Image2 = R2
+    image_pair.PerspectiveCenter_Image2 = b1
+
+    model_points = image_pair.ImagesToModel(good_pts1[0:5, 0:2], good_pts2[0:5, 0:2], 'vector')
+
+    x1 = image_pair.PerspectiveCenter_Image1[:, None]
+    x2 = image_pair.PerspectiveCenter_Image2[:, None]
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image1, x1, -cam.focalLength / 10000, 1,
+                   ax4)
+    drawImageFrame(cam.sensorSize, cam.sensorSize, image_pair.RotationMatrix_Image2, x2, -cam.focalLength / 10000, 1,
+                   ax4)
+    drawOrientation(image_pair.RotationMatrix_Image1, x1, 0.5, ax4)
+    drawOrientation(image_pair.RotationMatrix_Image2, x2, 0.5, ax4)
+    drawRays(model_points[0], x1, ax4, 'r')
+    drawRays(model_points[0], x2, ax4, 'g')
+
+    ax4.scatter(model_points[0][:, 0], model_points[0][:, 1], model_points[0][:, 2], marker='^')
+
+    # draw all model points
+    fig_orthographic = plt.figure()
+    ax = fig_orthographic.add_subplot(111, projection='3d')
+    image_pair.RotationMatrix_Image2 = R2
+    image_pair.PerspectiveCenter_Image2 = b2
+    model_points = image_pair.ImagesToModel(good_pts1[:, 0:2], good_pts2[:, 0:2], 'vector')
+    ax.scatter(model_points[0][:, 0], model_points[0][:, 1], model_points[0][:, 2], marker='^')
+
+    # distances -> size of e vector we got from vectoric intersection
+    es = la.norm(model_points[1], axis=1)
+
+    plt.show()
 
     print(pd.DataFrame(F))
