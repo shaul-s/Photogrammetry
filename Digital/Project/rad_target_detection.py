@@ -15,7 +15,7 @@ def binarize_image(img):
     return thresh
 
 
-def get_contours(binary, thresh):
+def contour_image(binary, thresh):
     """
 
     :param binary:
@@ -30,6 +30,24 @@ def get_contours(binary, thresh):
     return contours
 
 
+def find_ellipses(contours):
+    ellipses = []
+    hulls = []
+    # for each contour fit an ellipse
+    for i, cnt in enumerate(contours):
+        # get convex hull of contour
+        hull = cv2.convexHull(cnt, returnPoints=True)
+        # defects = cv2.convexityDefects(cnt, hull)
+
+        if len(hull) > 5:
+            # (x,y), (Ma, ma), angle = cv2.fitEllipse(hull)
+            ellipse = cv2.fitEllipse(np.array(hull))
+            ellipses.append(ellipse)
+            hulls.append(hulls)
+
+    return ellipses, hulls
+
+
 if __name__ == '__main__':
     image = cv2.imread('small.jpg', 0)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -39,8 +57,7 @@ if __name__ == '__main__':
     binary = binarize_image(gray)
 
     # getting contours of the binary image
-    contours = get_contours(binary, 20)
-
+    contours = contour_image(binary, 20)
     plt.imshow(cv2.drawContours(image, contours, -1, (255, 0, 0), 1))  # -1 for every contour and 1 for thickness
     plt.show()
 
