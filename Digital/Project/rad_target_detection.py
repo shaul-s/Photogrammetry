@@ -217,12 +217,15 @@ def find_rad_encoding(img, rad_target):
     encoding = ''.join(img_val_inner_split)
 
     if encoding.startswith('0'):
-        return False
+        # return False
+        pnts_outer = -1
+        pnts_inner = -1
+        encoding = -1
 
     print(encoding)
-    return pnts_outer, pnts_inner
+    return pnts_outer, pnts_inner, encoding
 
-    print('hi')
+
 
 
 def draw_targets(img, targets):
@@ -235,6 +238,28 @@ def draw_targets(img, targets):
         draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
 
 
+def get_cmap_string(palette, domain):
+    domain_unique = np.unique(domain)
+    hash_table = {key: i_str for i_str, key in enumerate(domain_unique)}
+    mpl_cmap = plt.get_cmap(palette, lut=len(domain_unique))
+
+    def cmap_out(X, **kwargs):
+        return mpl_cmap(hash_table[X], **kwargs)
+
+    return cmap_out
+
+
+def targets_encoding(binary_img, targets):
+
+    # find target encoding using the external ellipse in every ellipse-pair target
+    ext_ellipses = np.vstack(targets)[1::2]  # here we take every 2nd ellipse in the pairs since it is the external
+    codes = []
+    for elli in ext_ellipses:
+        pnts_outer, pnts_inner, code = find_rad_encoding(binary_img, elli)
+        if code != -1:
+            codes.append(code)
+
+    return codes
 
 if __name__ == '__main__':
     image = cv2.imread('Car-with-coded-targets.jpg')
@@ -251,12 +276,12 @@ if __name__ == '__main__':
     plt.show()
 
     # firstly we will threshold the image to make it binary
-    binary = binarize_image(gray)
-    plt.imshow(binary, cmap='gray')
+    binary_img = binarize_image(gray)
+    plt.imshow(binary_img, cmap='gray')
     plt.show()
 
     # getting contours of the binary image
-    conts = contour_image(binary, thresh=10)
+    conts = contour_image(binary_img, thresh=10)
     c_img = rgb_img.copy()
     cv2.drawContours(c_img, conts, -1, (255, 0, 0), 2)
     plt.imshow(c_img)
@@ -268,11 +293,21 @@ if __name__ == '__main__':
     # find concentric ellipses, check to see if ratio applies between each pair of concentric ellipses
     rad_targets = find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
 
+    # drawing found targets on img
+    draw_targets(rgb_img, rad_targets)
+    plt.imshow(rgb_img)
+    plt.show()
+
+    # coding each target by it's shape
+    targets_codes = targets_encoding(binary_img, rad_targets)
+
+    print(targets_codes)
     # find target encoding using the external ellipse in every ellipse-pair target
-    ext_ellipses = np.vstack(rad_targets)[1::2]  # here we take every 2nd ellipse in the pairs since it is the external
-
-    pnts_outer, pnts_inner = find_rad_encoding(binary, ext_ellipses[6])
-
+    # ext_ellipses = np.vstack(rad_targets)[1::2]  # here we take every 2nd ellipse in the pairs since it is the external
+    #
+    # pnts_outer, pnts_inner = find_rad_encoding(binary_img, ext_ellipses[6])
+    #
+    # x=1
     # for ell in ext_ellipses:
     #     points = val_at_ellipse_coord(binary, rad_targets[1][-1], n=100)
     # points, _, imvals = val_at_ellipse_coord(binary, ext_ellipses[1], n=100)
@@ -281,12 +316,7 @@ if __name__ == '__main__':
     # for ell in ellipses:
     #     draw_ellipse(rgb_img, ell[0], ell[1], ell[-1], 0, 360, (255, 0, 0))
 
-    # drawing found targets on img
-    draw_targets(rgb_img, rad_targets)
 
-    # plotting and testing
-    plt.imshow(rgb_img)
-    plt.show()
 
     # plt.imshow(binary)
     # plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1], c='r')
