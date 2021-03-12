@@ -225,17 +225,42 @@ def find_rad_encoding(img, rad_target):
     print('hi')
 
 
+def draw_targets(img, targets):
+    " draws ellips around the targets"
+
+    for ell in targets:
+        ell1 = ell[0]
+        ell2 = ell[1]
+        draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, (255, 0, 0))
+        draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
+
+
+
 if __name__ == '__main__':
-    image = cv2.imread('Car-with-coded-targets.jpg', 0)
+    image = cv2.imread('Car-with-coded-targets.jpg')
+    plt.imshow(image)
+    plt.show()
+
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # rgb image
+    plt.imshow(image)
+    plt.show()
     rgb_img = image.copy()
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # gray image
+
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)  # gray image
+    plt.imshow(gray, cmap='gray')
+    plt.show()
 
     # firstly we will threshold the image to make it binary
     binary = binarize_image(gray)
+    plt.imshow(binary, cmap='gray')
+    plt.show()
 
     # getting contours of the binary image
     conts = contour_image(binary, thresh=10)
+    c_img = rgb_img.copy()
+    cv2.drawContours(c_img, conts, -1, (255, 0, 0), 2)
+    plt.imshow(c_img)
+    plt.show()
 
     # next step is to fit ellipses to the contours and filter out ones that cannot be candidates for target
     ellipses, hulls = find_ellipses(conts)
@@ -257,19 +282,15 @@ if __name__ == '__main__':
     #     draw_ellipse(rgb_img, ell[0], ell[1], ell[-1], 0, 360, (255, 0, 0))
 
     # drawing found targets on img
-    for ell in rad_targets:
-        ell1 = ell[0]
-        ell2 = ell[1]
-        draw_ellipse(rgb_img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, (255, 0, 0))
-        draw_ellipse(rgb_img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
+    draw_targets(rgb_img, rad_targets)
 
     # plotting and testing
     plt.imshow(rgb_img)
     plt.show()
-    # plt.imshow(cv2.drawContours(image, hulls, -1, (255, 0, 0), 1))  # -1 for every contour and 1 for thickness
+
+    # plt.imshow(binary)
+    # plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1], c='r')
+    # plt.scatter(pnts_inner[:, 0], pnts_inner[:, 1], c='k')
+    # plt.axis('off')
     # plt.show()
-    plt.imshow(binary)
-    plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1], c='r')
-    plt.scatter(pnts_inner[:, 0], pnts_inner[:, 1], c='k')
-    plt.axis('off')
-    plt.show()
+    
