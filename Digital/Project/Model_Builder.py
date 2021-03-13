@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import cv2
 import rad_target_detection as rtd
 
-def get_targets(img, contour_thresh=50, epsilon=5, lower_thresh=3.5, upper_thresh=7):
+def get_targets(img, contour_thresh=20, epsilon=5, lower_thresh=3.5, upper_thresh=7):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # rgb image
     plt.imshow(img)
     plt.show()
@@ -30,7 +30,7 @@ def get_targets(img, contour_thresh=50, epsilon=5, lower_thresh=3.5, upper_thres
     ellipses, hulls = rtd.find_ellipses(conts)
 
     # find concentric ellipses, check to see if ratio applies between each pair of concentric ellipses
-    rad_targets = rtd.find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
+    rad_targets = rtd.find_rad_targets(ellipses, lower_thresh, upper_thresh)
 
     # coding each target by it's shape
     targets_df = rtd.targets_encoding(binary_img, rad_targets)
