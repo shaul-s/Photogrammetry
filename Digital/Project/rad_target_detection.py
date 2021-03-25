@@ -3,17 +3,23 @@ import itertools
 import matplotlib.pyplot as plt
 import cv2
 import pandas as pd
+from tqdm import tqdm
 from colorsys import hsv_to_rgb
 
-def binarize_image(img):
+
+def binarize_image(img, d=50, sig1=100, sig2=100, b_size=13, c=5):
     """
 
     :param img:
     :return:
     """
-    blur = cv2.bilateralFilter(img, 50, 100, 100)  # d>=5, sigma values (10 is small, bigger the more effect)
+    blur = cv2.bilateralFilter(img, d, sig1, sig2)  # d>=5, sigma values (10 is small, bigger the more effect)
+
+    # plt.imshow(blur)
+    # plt.show()
+
     binary_img = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY_INV, 13, 5)
+                                       cv2.THRESH_BINARY_INV, b_size, c)
     return binary_img
 
 
@@ -41,6 +47,7 @@ def find_ellipses(conts):
     ellipses = []
     hulls = []
     # for each contour fit an ellipse
+    print('[INFO] fitting ellipses to contours')
     for i, cnt in enumerate(conts):
         # get convex hull of contour
         hull = cv2.convexHull(cnt, returnPoints=True)
@@ -52,6 +59,7 @@ def find_ellipses(conts):
             ellipses.append(ellipse)
             hulls.append(hull)
 
+    print('[INFO] found {} valid ellipses'.format(len(ellipses)))
     return ellipses, hulls
 
 
@@ -89,6 +97,7 @@ def draw_ellipse(
 
 
 def find_rad_targets(ellipses, epsilon=5, lower_thresh=3.5, upper_thresh=7):
+    print('[INFO] filtering the suspected targets from ellipses')
     rad_targets = []
     ells = []
     # organize ellipses into one array
@@ -104,16 +113,19 @@ def find_rad_targets(ellipses, epsilon=5, lower_thresh=3.5, upper_thresh=7):
             int(round(axes[0])),
             int(round(axes[1]))
         )
+
         # we want ellipses with small eccentricity
-        if 0.5 < axes[0]/axes[1] < 2:
-            ells.append([center[0], center[-1], axes[0], axes[-1], angle])
+        # if 0.5 < axes[0] / axes[1] < 2:
+        ells.append([center[0], center[-1], axes[0], axes[-1], angle])
 
     ells = np.vstack(ells)
 
     # create an object to contain every possible pair of ellipses
     ell_pairs = itertools.combinations(ells, 2)
 
-    for ell1, ell2 in ell_pairs:
+    for ells in tqdm(list(ell_pairs)):
+        ell1 = ells[0]
+        ell2 = ells[1]
         center1 = np.array([ell1[0], ell1[1]])
         center2 = np.array([ell2[0], ell2[1]])
 
@@ -130,6 +142,7 @@ def find_rad_targets(ellipses, epsilon=5, lower_thresh=3.5, upper_thresh=7):
                 if lower_thresh < (axes1[-1] / axes2[-1]) < upper_thresh:
                     rad_targets.append(np.vstack((ell2, ell1)))
 
+    print('[INFO] found {} suspected as RAD targets'.format(len(rad_targets)))
     return rad_targets
 
 
@@ -192,9 +205,11 @@ def find_rad_encoding(img, rad_target):
     pnts_outer, angles_outer, img_val_outer = val_at_ellipse_coord(img, outer, n=150)
 
     if img_val_outer is None:
-        encoding = '------------'
+        pnts_outer = -1
+        pnts_inner = -1
+        encoding = -1
         print('target is out of img bounds, encoding cannot be determined')
-        return encoding
+        return pnts_outer, pnts_inner, encoding
 
     pnts_inner, angles_inner, img_val_inner = val_at_ellipse_coord(img, inner, n=150)
 
@@ -224,28 +239,37 @@ def find_rad_encoding(img, rad_target):
         pnts_outer = -1
         pnts_inner = -1
         encoding = -1
-
-    print(encoding)
+    if encoding != -1:
+        print('[INFO] for target center ({}, {}) the coding is {}'.format(outer[0], outer[1], encoding))
+    else:
+        print('[INFO] for target center ({}, {}) - NOT A TARGET'.format(outer[0], outer[1]))
     return pnts_outer, pnts_inner, encoding
-
-
 
 
 def draw_targets(img, targets):
     " draws ellips around the targets"
+    if isinstance(targets, pd.DataFrame):
+        for i, row in targets.iterrows():
+            ell1 = targets.loc[i, 'target'][0]
+            ell2 = targets.loc[i, 'target'][1]
+            code = targets.loc[i, 'code']
+            # convert color to rgb
+            # color = tuple(round(i * 255) for i in hsv_to_rgb(targets.loc[i,'color'][0],targets.loc[i,'color'][1],targets.loc[i,'color'][2]))
+            # draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, color)
+            # draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, color)
+            # for ell in targets:
+            # ell1 = ell[0]
+            # ell2 = ell[1]
 
-    for i, row in targets.iterrows():
-        ell1 = targets.loc[i,'target'][0]
-        ell2 = targets.loc[i,'target'][1]
-        # convert color to rgb
-        # color = tuple(round(i * 255) for i in hsv_to_rgb(targets.loc[i,'color'][0],targets.loc[i,'color'][1],targets.loc[i,'color'][2]))
-        # draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, color)
-        # draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, color)
-    # for ell in targets:
-        # ell1 = ell[0]
-        # ell2 = ell[1]
-        draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, (255, 0, 0))
-        draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
+            draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, (255, 0, 0))
+            draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
+            cv2.putText(img, code, (int(ell1[0]+2), int(ell1[1]-10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    else:
+        for tar in targets:
+            ell1 = tar[0]
+            ell2 = tar[1]
+            draw_ellipse(img, (ell1[0], ell1[1]), (ell1[2], ell1[3]), ell1[-1], 0, 360, (255, 0, 0))
+            draw_ellipse(img, (ell2[0], ell2[1]), (ell2[2], ell2[3]), ell2[-1], 0, 360, (0, 0, 255))
 
 
 def get_cmap_string(palette, domain):
@@ -260,7 +284,6 @@ def get_cmap_string(palette, domain):
 
 
 def targets_encoding(binary_img, targets):
-
     targets_df = pd.DataFrame(columns=['target', 'code', 'color'])
     targets_df['target'] = targets
     # find target encoding using the external ellipse in every ellipse-pair target
@@ -274,29 +297,28 @@ def targets_encoding(binary_img, targets):
     targets_df = targets_df[targets_df['code'] != -1]
     return targets_df
 
+
 if __name__ == '__main__':
-    image = cv2.imread('Car-with-coded-targets.jpg')
-    plt.imshow(image)
-    plt.show()
+    image = cv2.imread(r'.\table_targets\20210325_121543.jpg')
 
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # rgb image
-    plt.imshow(image)
-    plt.show()
+    # plt.imshow(image)
+    # plt.show()
     rgb_img = image.copy()
 
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)  # gray image
-    plt.imshow(gray, cmap='gray')
-    plt.show()
+    # plt.imshow(gray, cmap='gray')
+    # plt.show()
 
     # firstly we will threshold the image to make it binary
-    binary_img = binarize_image(gray)
+    binary_img = binarize_image(gray, d=20, sig1=125, sig2=125, b_size=29, c=9)  # 100,100,17,5
     plt.imshow(binary_img, cmap='gray')
     plt.show()
 
     # getting contours of the binary image
-    conts = contour_image(binary_img, thresh=10)
+    conts = contour_image(binary_img, thresh=7)
     c_img = rgb_img.copy()
-    cv2.drawContours(c_img, conts, -1, (255, 0, 0), 2)
+    cv2.drawContours(c_img, conts, -1, (255, 0, 0), 1)
     plt.imshow(c_img)
     plt.show()
 
@@ -304,31 +326,30 @@ if __name__ == '__main__':
     ellipses, hulls = find_ellipses(conts)
 
     # find concentric ellipses, check to see if ratio applies between each pair of concentric ellipses
-    rad_targets = find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
-
+    rad_targets = find_rad_targets(ellipses, lower_thresh=3.4, upper_thresh=7.6)
 
     # coding each target by it's shape and returning in data frame
-    targets = targets_encoding(binary_img, rad_targets)
+    targets = targets_encoding(binarize_image(gray, d=20, sig1=100, sig2=100, b_size=51, c=10), rad_targets)  # 20,75,75,11,2
 
     # color map for the data
-    cmap = get_cmap_string(palette='hsv', domain=targets['code'])
-    targets['color'] = targets['code'].apply(cmap)
+    # cmap = get_cmap_string(palette='hsv', domain=targets['code'])
+    # targets['color'] = targets['code'].apply(cmap)
 
     # drawing found targets on img
     draw_targets(rgb_img, targets)
+
+    cv2.imwrite("20210325_121543_coded.jpg", cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR))
+
     plt.imshow(rgb_img)
     plt.show()
-
 
     # for ell in ext_ellipses:
     #     points = val_at_ellipse_coord(binary, rad_targets[1][-1], n=100)
     # points, _, imvals = val_at_ellipse_coord(binary, ext_ellipses[1], n=100)
 
-
-
     # example usage
-    plt.figure()
-    x = np.linspace(0, np.pi * 2, 100)
-    for i_name, name in enumerate(targets['color']):
-        plt.plot(x, np.sin(x) / i_name, c=name)
-    plt.show()
+    # plt.figure()
+    # x = np.linspace(0, np.pi * 2, 100)
+    # for i_name, name in enumerate(targets['color']):
+    #     plt.plot(x, np.sin(x) / i_name, c=name)
+    # plt.show()
