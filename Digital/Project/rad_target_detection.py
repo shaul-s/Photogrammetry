@@ -11,9 +11,9 @@ def binarize_image(img):
     :param img:
     :return:
     """
-    blur = cv2.bilateralFilter(img, 10, 75, 75)  # d>=5, sigma values (10 is small, bigger the more effect)
+    blur = cv2.bilateralFilter(img, 50, 100, 100)  # d>=5, sigma values (10 is small, bigger the more effect)
     binary_img = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY_INV, 21, 2)
+                                       cv2.THRESH_BINARY_INV, 13, 5)
     return binary_img
 
 
@@ -104,7 +104,9 @@ def find_rad_targets(ellipses, epsilon=5, lower_thresh=3.5, upper_thresh=7):
             int(round(axes[0])),
             int(round(axes[1]))
         )
-        ells.append([center[0], center[-1], axes[0], axes[-1], angle])
+        # we want ellipses with small eccentricity
+        if 0.5 < axes[0]/axes[1] < 2:
+            ells.append([center[0], center[-1], axes[0], axes[-1], angle])
 
     ells = np.vstack(ells)
 
