@@ -6,7 +6,7 @@ import rad_target_detection as rtd
 
 def get_targets(img, contour_thresh=5, epsilon=5, lower_thresh=3.5, upper_thresh=7):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # rgb image
-    plt.imsave('original.png', img)
+    # plt.imsave('original.png', img)
     plt.imshow(img)
     plt.show()
     rgb_img = img.copy()
@@ -18,7 +18,7 @@ def get_targets(img, contour_thresh=5, epsilon=5, lower_thresh=3.5, upper_thresh
 
     # firstly we will threshold the image to make it binary
     binary_img = rtd.binarize_image(gray)
-    plt.imsave('binary.png', binary_img, cmap='gray')
+    # plt.imsave('binary.png', binary_img, cmap='gray')
     plt.imshow(binary_img, cmap='gray')
     plt.show()
 
@@ -26,7 +26,7 @@ def get_targets(img, contour_thresh=5, epsilon=5, lower_thresh=3.5, upper_thresh
     contours = rtd.contour_image(binary_img, contour_thresh)
     c_img = rgb_img.copy()
     cv2.drawContours(c_img, contours, -1, (255, 0, 0), 1)
-    plt.imsave('contours.png', c_img)
+    # plt.imsave('contours.png', c_img)
     plt.imshow(c_img)
     plt.show()
 
@@ -34,7 +34,7 @@ def get_targets(img, contour_thresh=5, epsilon=5, lower_thresh=3.5, upper_thresh
     ellipses, hulls = rtd.find_ellipses(contours)
     for i, ellip in enumerate(ellipses):
         rtd.draw_ellipse(c_img, ellip[0], ellip[1], ellip[2], 0, 360, (0, 0, 255))
-    plt.imsave('ellipses.png', c_img)
+    # plt.imsave('ellipses.png', c_img)
     plt.imshow(c_img)
     plt.show()
 
@@ -50,15 +50,15 @@ def get_targets(img, contour_thresh=5, epsilon=5, lower_thresh=3.5, upper_thresh
 
     # drawing found targets on img
     rtd.draw_targets(rgb_img, targets_df)
-    plt.imsave('targets.png', rgb_img)
+    # plt.imsave('targets.png', rgb_img)
     plt.imshow(rgb_img)
     plt.show()
 
     return targets_df
 
 if __name__ == '__main__':
-    image = cv2.imread(r'.\Shaul_Car2\20210313_144448.jpg')
-    # image = cv2.imread(r'.\table_targets\20210325_121543.jpg')
+    # image = cv2.imread(r'.\Shaul_Car1\20210313_144448.jpg')
+    image = cv2.imread(r'.\table_targets\20210325_121543.jpg')
     targets = get_targets(image)
 
 
