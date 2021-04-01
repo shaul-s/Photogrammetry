@@ -100,9 +100,11 @@ app.layout = html.Div([
             html.Img(id= 'binary_image',src='data:image/png;base64,{}'.format(encoded_image_binary.decode()),style={'width': '100%', 'height': '100%'})
             ],style={'width': '49%', 'float': 'right', 'display': 'inline-block'})
         ]),
+
         html.Div(html.Button('Find Rad Targets', id='submit-val', n_clicks=0,style={'float': 'center', 'display': 'inline-block'})),
         html.Div(id='container-button-basic',
              children='Enter a value and press submit', style={'float': 'center', 'display': 'inline-block'}),
+
         html.Div([
 
             # html.Div([
@@ -119,19 +121,13 @@ app.layout = html.Div([
 
 
 @app.callback(
-    [
     Output('binary_image', 'src'),
-    Output('contours_image', 'src'),
-    Output('targets_image', 'src')
-    ],
     [
     Input('d-value', 'value'),
     Input('sigma', 'value'),
     Input('b_size', 'value')
     ]
-    # dash.dependencies.Output('binary_image', 'src'),
-    # [dash.dependencies.Input('original_image', 'src'),
-    # dash.dependencies.Input('d-value', 'value')]
+
 )
 def update_image(d, sigma, b):
     d = int(d)
@@ -148,58 +144,46 @@ def update_image(d, sigma, b):
     plt.imsave('binary.png', binary_img, cmap='gray')
     image_filename = 'binary.png'
     encoded_image_binary = base64.b64encode(open(image_filename, 'rb').read())
+    return 'data:image/png;base64,{}'.format(encoded_image_binary.decode())
 
-    # contours image
-    contour_thresh=10
-    contours = rtd.contour_image(binary_img, contour_thresh)
-    c_img = rgb_img.copy()
-    cv2.drawContours(c_img, contours, -1, (255, 0, 0), 2)
-    plt.imsave('contours.png', c_img)
-    image_filename = 'contours.png'
-    encoded_image_contours = base64.b64encode(open(image_filename, 'rb').read())
+@app.callback(
+    Output('targets_image', 'src'),
+    [
+    Input('submit-val', 'n_clicks')
+    ]
+    # dash.dependencies.Output('binary_image', 'src'),
+    # [dash.dependencies.Input('original_image', 'src'),
+    # dash.dependencies.Input('d-value', 'value')]
+)
+def update_targets_image(n_clicks):
 
-    # targets image
-    ellipses, hulls = rtd.find_ellipses(contours)
-    rad_targets = rtd.find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
-    # coding each target by it's shape
-    targets_df = rtd.targets_encoding(binary_img, rad_targets)
-    # drawing found targets on img
-    t_img = rgb_img.copy()
-    rtd.draw_targets(t_img, targets_df)
-    plt.imsave('targets.png', t_img)
+    if n_clicks > 0:
+        original_image = cv2.imread('original.png')
+        rgb_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)  # rgb image
+
+        # contours image
+        binary_img = cv2.imread('binary.png')
+        binary_img = cv2.cvtColor(binary_img, cv2.COLOR_BGR2GRAY)
+        contour_thresh=10
+        contours = rtd.contour_image(binary_img, contour_thresh)
+        c_img = rgb_img.copy()
+        cv2.drawContours(c_img, contours, -1, (255, 0, 0), 2)
+        plt.imsave('contours.png', c_img)
+        # image_filename = 'contours.png'
+        # encoded_image_contours = base64.b64encode(open(image_filename, 'rb').read())
+
+        # targets image
+        ellipses, hulls = rtd.find_ellipses(contours)
+        rad_targets = rtd.find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
+        # coding each target by it's shape
+        targets_df = rtd.targets_encoding(binary_img, rad_targets)
+        # drawing found targets on img
+        t_img = rgb_img.copy()
+        rtd.draw_targets(t_img, targets_df)
+        plt.imsave('targets.png', t_img)
     image_filename = 'targets.png'
     encoded_image_targets = base64.b64encode(open(image_filename, 'rb').read())
-    return 'data:image/png;base64,{}'.format(encoded_image_binary.decode()),'data:image/png;base64,{}'.format(encoded_image_contours.decode()),'data:image/png;base64,{}'.format(encoded_image_targets.decode())  
-
-#   @app.callback(
-#     [
-#     Output('binary_image', 'src'),
-#     Output('contours_image', 'src'),
-#     Output('targets_image', 'src')
-#     ],
-#     [
-#     Input('d-value', 'value'),
-#     Input('sigma', 'value'),
-#     Input('b_size', 'value')
-#     ]
-#     # dash.dependencies.Output('binary_image', 'src'),
-#     # [dash.dependencies.Input('original_image', 'src'),
-#     # dash.dependencies.Input('d-value', 'value')]
-# )
-# def update_image(d, sigma, b):
-
-#     # targets image
-#     ellipses, hulls = rtd.find_ellipses(contours)
-#     rad_targets = rtd.find_rad_targets(ellipses, lower_thresh=3.5, upper_thresh=7.5)
-#     # coding each target by it's shape
-#     targets_df = rtd.targets_encoding(binary_img, rad_targets)
-#     # drawing found targets on img
-#     t_img = rgb_img.copy()
-#     rtd.draw_targets(t_img, targets_df)
-#     plt.imsave('targets.png', t_img)
-#     image_filename = 'targets.png'
-#     encoded_image_targets = base64.b64encode(open(image_filename, 'rb').read())
-#     return 'data:image/png;base64,{}'.format(encoded_image_binary.decode())    
+    return 'data:image/png;base64,{}'.format(encoded_image_targets.decode())    
 
 # app.run_server(mode="inline")
 if __name__ == '__main__':
