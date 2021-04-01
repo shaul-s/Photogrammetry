@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import itertools
 import matplotlib.pyplot as plt
 import cv2
@@ -14,12 +15,14 @@ def binarize_image(img, d=50, sig1=100, sig2=100, b_size=13, c=5):
     :return:
     """
     blur = cv2.bilateralFilter(img, d, sig1, sig2)  # d>=5, sigma values (10 is small, bigger the more effect)
+    # blur = cv.GaussianBlur(img,(5,5),0)
 
     # plt.imshow(blur)
     # plt.show()
 
     binary_img = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                        cv2.THRESH_BINARY_INV, b_size, c)
+    
     return binary_img
 
 
@@ -213,6 +216,10 @@ def find_rad_encoding(img, rad_target):
 
     pnts_inner, angles_inner, img_val_inner = val_at_ellipse_coord(img, inner, n=150)
 
+    # for debug
+    plt.scatter(pnts_inner[:, 0], pnts_inner[:, 1])
+    plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1])
+
     # get the angles where the image value along the ellipse is 0
     #
     # min_angle = np.min(angles_outer[img_val_outer == 0])  # * 180 / np.pi)
@@ -289,17 +296,22 @@ def targets_encoding(binary_img, targets):
     # find target encoding using the external ellipse in every ellipse-pair target
     ext_ellipses = np.vstack(targets)[1::2]  # here we take every 2nd ellipse in the pairs since it is the external
     codes = []
+    # plt.imshow(binary_img, cmap='gray')
     for elli in ext_ellipses:
         pnts_outer, pnts_inner, code = find_rad_encoding(binary_img, elli)
         codes.append(code)
 
+    # plt.show()
+    
     targets_df['code'] = codes
     targets_df = targets_df[targets_df['code'] != -1]
     return targets_df
 
 
 if __name__ == '__main__':
+    
     image = cv2.imread(r'.\table_targets\20210325_121543.jpg')
+    # image = cv2.imread(r'.\Shaul_Car2\20210313_144448.jpg')
 
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # rgb image
     # plt.imshow(image)
