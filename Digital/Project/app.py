@@ -109,7 +109,7 @@ app.layout = html.Div([
     html.Div(html.Button('Find Rad Targets', id='submit-val', n_clicks=0,style={'horizontalAlign' : 'center', 'display': 'inline-block'})),
     dcc.Loading(id = 'loading',
     children = [html.Div(id='container-button-basic',
-                children='After adjusting binarization press to find targets', style={'horizontalAlign' : 'center', 'display': 'inline-block'})]),
+                children='After adjusting binarization press to find targets (it might take few minutes)', style={'horizontalAlign' : 'center', 'display': 'inline-block'})]),
 
     html.Div([
 
@@ -166,15 +166,6 @@ def update_image(d, sigma, b):
     encoded_image_binary = base64.b64encode(open(image_filename, 'rb').read())
     return 'data:image/png;base64,{}'.format(encoded_image_binary.decode())
 
-# @app.callback(
-#     Output('container-button-basic', 'children'),
-#     Input('submit-val', 'n_clicks'))
-# def running_indication(n_clicks):
-#     if n_clicks > 0:
-#         return 'Running...'
-#     return 'After adjusting binarization press to find targets (it might take some time...)'
-
-
 
 @app.callback(
     [
@@ -218,7 +209,7 @@ def update_targets_image(n_clicks):
         return 'data:image/png;base64,{}'.format(encoded_image_targets.decode()), f'{targets_df.shape[0]} targets found' 
     image_filename = 'targets.png'
     encoded_image_targets = base64.b64encode(open(image_filename, 'rb').read())
-    return 'data:image/png;base64,{}'.format(encoded_image_targets.decode()), 'After adjusting binarization press to find targets' 
+    return 'data:image/png;base64,{}'.format(encoded_image_targets.decode()), 'After adjusting binarization press to find targets (it might take few minutes)' 
 
 # app.run_server(mode="inline")
 if __name__ == '__main__':
