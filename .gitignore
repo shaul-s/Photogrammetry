@@ -102,3 +102,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+Digital/Project/binary.png
+Digital/Project/contours.png
+Digital/Project/targets.png
