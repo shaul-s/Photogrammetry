@@ -16,7 +16,18 @@ import plotly.express as px
 from io import BytesIO
 from PIL import Image
 
+#----------------------------------------------------------------------------
+# Target Detector
 
+#  This is a tool we have build to analize our algorithm, we have fount it quite usefull.  
+#  It can also be used to find the rad targets in a semi-automatic way and get goot results.
+
+#  Instructions:  
+#  1. Run the entire notebook, the tool will apear in the bottom.  
+#  2. Adjust the sliders to get binary image where the targets can be seen as clearly as possible.  
+#  3. Press on the find targets button and wait for the result. the process can take up to 5 minutes.  
+#  4. After seeing the results try further adjusting the sliders to get better results
+#----------------------------------------------------------------------------
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # app = JupyterDash(__name__, external_stylesheets=external_stylesheets)
@@ -141,19 +152,6 @@ app.layout = html.Div([
 
 ])
 
-# def parse_contents(contents, filename, date):
-#     return html.Div([
-#         html.H5(filename),
-#         # html.H6(datetime.datetime.fromtimestamp(date)),
-
-#         # HTML images accept base64 encoded strings in the same format
-#         # that is supplied by the upload
-#         html.Img(src=contents,style={'width': '100%', 'height': '100%'})
-        
-#     ])
-# def from_base64(base64_data):
-#     nparr = np.frombuffer(base64.b64decode(base64_data), np.uint8)
-#     return cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
 
 def stringToImage(content):
     encoded_image = content.split(",")[1]

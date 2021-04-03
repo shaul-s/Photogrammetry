@@ -217,8 +217,8 @@ def find_rad_encoding(img, rad_target):
     pnts_inner, angles_inner, img_val_inner = val_at_ellipse_coord(img, inner, n=150)
 
     # for debug
-    plt.scatter(pnts_inner[:, 0], pnts_inner[:, 1])
-    plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1])
+    # plt.scatter(pnts_inner[:, 0], pnts_inner[:, 1])
+    # plt.scatter(pnts_outer[:, 0], pnts_outer[:, 1])
 
     # get the angles where the image value along the ellipse is 0
     #
