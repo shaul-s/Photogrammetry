@@ -10,20 +10,21 @@ import dash  # (version 1.12.0) pip install dash
 from jupyter_dash import JupyterDash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
-import glob
+from dash.dependencies import Input, Output, State
 import base64
 import plotly.express as px
+from io import BytesIO
+from PIL import Image
+
+
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 # app = JupyterDash(__name__, external_stylesheets=external_stylesheets)
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-# Create server variable with Flask server object mmor use with gunicorn
-# server = app.server
-
 # encoding image
-image_filename = 'original.png'
+image_filename = 'table_targets\\20210325_121519.jpg'
+# image_filename = 'original.png'
 encoded_image_original = base64.b64encode(open(image_filename, 'rb').read())
 image_filename = 'binary.png'
 encoded_image_binary = base64.b64encode(open(image_filename, 'rb').read())
@@ -38,6 +39,28 @@ app.layout = html.Div([
 
     
     html.H1("RAD Targets Detector", style={'text-align': 'center'}),
+
+    dcc.Upload(
+        id='upload-image',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select an Image')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        # Allow multiple files to be uploaded
+        multiple=False
+    ),
+    html.Div(id='output-image-upload'),
+
     html.H2("Adjust parameters to get clear targets", style={'text-align': 'center'}),
 
     html.Div(id='slider-d-output', style={'margin-top': 20}),
@@ -92,9 +115,6 @@ app.layout = html.Div([
         value=15,
     ),
     
-    # html.Div(
-    # dcc.Graph(id = 'img', figure= fig)
-    # ),
     html.Div([
 
         html.Div([
@@ -113,10 +133,6 @@ app.layout = html.Div([
 
     html.Div([
 
-        # html.Div([
-        # html.Img(id= 'contours_image',src='data:image/png;base64,{}'.format(encoded_image_contours.decode()),style={'width': '100%', 'height': '100%'}),
-        # ],style={'width': '49%', 'display': 'inline-block'}),
-
         html.Div([
         html.Img(id= 'targets_image',src='data:image/png;base64,{}'.format(encoded_image_targets.decode()),style={'width': '100%', 'height': '100%'})
         ],style={ 'float': 'center', 'display': 'inline-block'})
@@ -124,6 +140,41 @@ app.layout = html.Div([
         
 
 ])
+
+# def parse_contents(contents, filename, date):
+#     return html.Div([
+#         html.H5(filename),
+#         # html.H6(datetime.datetime.fromtimestamp(date)),
+
+#         # HTML images accept base64 encoded strings in the same format
+#         # that is supplied by the upload
+#         html.Img(src=contents,style={'width': '100%', 'height': '100%'})
+        
+#     ])
+# def from_base64(base64_data):
+#     nparr = np.frombuffer(base64.b64decode(base64_data), np.uint8)
+#     return cv2.imdecode(nparr, cv2.IMREAD_ANYCOLOR)
+
+def stringToImage(content):
+    encoded_image = content.split(",")[1]
+    decoded_image = base64.b64decode(encoded_image)
+    bytes_image = BytesIO(decoded_image)
+    return np.array(Image.open(bytes_image).convert('RGB'))
+
+@app.callback(Output('output-image-upload', 'children'),
+              Input('upload-image', 'contents'),
+              State('upload-image', 'filename'),
+              State('upload-image', 'last_modified'))
+def update_output(content, filename, date):
+    if content is not None:
+        return html.Div([
+        html.H5(filename),
+
+        # HTML images accept base64 encoded strings in the same format
+        # that is supplied by the upload
+        html.Img(src=content,style={'width': '100%', 'height': '100%'})
+        
+    ])
 
 @app.callback(Output('slider-d-output', 'children'),
               Input('d-value', 'drag_value'))
@@ -141,23 +192,45 @@ def display_value(drag_value):
     return f'b_size: {drag_value}'
 
 @app.callback(
+    Output('original_image', 'src'),
+    [
+        Input('upload-image', 'contents'),
+        Input('original_image', 'src'),
+    ]
+)
+def update_image(content, default_src):
+    if content is not None:
+        original_image = stringToImage(content)
+        plt.imsave('original.png', original_image)
+        return content
+    return default_src
+
+@app.callback(
     Output('binary_image', 'src'),
     [
+    Input('upload-image', 'contents'),
     Input('d-value', 'value'),
     Input('sigma', 'value'),
     Input('b_size', 'value')
     ]
 
 )
-def update_image(d, sigma, b):
+def update_image(content, d, sigma, b):
+    # original_image = cv2.imread('table_targets\\20210325_121519.jpg')
+    # original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    # plt.imsave('original.png', original_image)
     d = int(d)
     sigma = int(sigma)
     b = int(b)
     if b%2 == 0:
         b = b+1
-    original_image = cv2.imread('original.png')
-    gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)  # gray image
-    rgb_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)  # rgb image
+    if content is not None:
+        original_image = stringToImage(content)
+    else:
+        original_image = cv2.imread('original.png')
+        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(original_image, cv2.COLOR_RGB2GRAY)  # gray image
+    # rgb_img = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)  # rgb image
     
     # binary image
     binary_img = rtd.binarize_image(gray,d=d, sig1=sigma, sig2=sigma, b_size=b, c=5)
@@ -173,7 +246,7 @@ def update_image(d, sigma, b):
     Output('container-button-basic', 'children')
     ],
     [
-    Input('submit-val', 'n_clicks')
+    Input('submit-val', 'n_clicks'),
     ]
     # dash.dependencies.Output('binary_image', 'src'),
     # [dash.dependencies.Input('original_image', 'src'),
