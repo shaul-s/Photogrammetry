@@ -23,7 +23,7 @@ from PIL import Image
 #  It can also be used to find the rad targets in a semi-automatic way and get goot results.
 
 #  Instructions:  
-#  1. Run the entire notebook, the tool will apear in the bottom.  
+#  1. Run the script and click on the server link that apear in the terminal. The app should appear in your browser. 
 #  2. Adjust the sliders to get binary image where the targets can be seen as clearly as possible.  
 #  3. Press on the find targets button and wait for the result. the process can take up to 5 minutes.  
 #  4. After seeing the results try further adjusting the sliders to get better results
